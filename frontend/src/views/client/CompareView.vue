@@ -1,0 +1,1 @@
+<template><div class="modern-page"><section class="modern-hero"><h1>Comparar / Simular</h1><p>A taxa mensal vem dos produtos configurados pelo administrador do banco. A regra do 1/3 só se aplica quando o cliente escolhe pagar com salário.</p></section><LoanSimulator /></div></template><script setup>import LoanSimulator from '@/components/common/LoanSimulator.vue'</script>

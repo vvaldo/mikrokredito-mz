@@ -1,0 +1,2 @@
+{"error":"password authentication failed for user \"postgres\"","level":"error","message":"Startup failed","timestamp":"2026-05-04 15:03:27"}
+{"error":"password authentication failed for user \"postgres\"","level":"error","message":"Startup failed","timestamp":"2026-05-04 15:08:00"}
