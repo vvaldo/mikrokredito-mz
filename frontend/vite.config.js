@@ -14,12 +14,12 @@ export default defineConfig({
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'https://api.microcredito.otech.co.mz',
         changeOrigin: true,
         secure: false
       },
       '/uploads': {
-        target: 'http://localhost:3001',
+        target: 'https://api.microcredito.otech.co.mz',
         changeOrigin: true,
         secure: false
       }
