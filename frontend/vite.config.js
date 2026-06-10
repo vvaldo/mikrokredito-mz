@@ -7,31 +7,28 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) }
   },
-
   server: {
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: true,
     proxy: {
       '/api': {
-        target: 'https://api.microcredito.otech.co.mz',
+        target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false
       },
       '/uploads': {
-        target: 'https://api.microcredito.otech.co.mz',
+        target: 'http://localhost:3001',
         changeOrigin: true,
         secure: false
       }
     }
   },
-
   preview: {
     host: '0.0.0.0',
     port: 5173,
     allowedHosts: true
   },
-
   build: {
     rollupOptions: {
       output: {
