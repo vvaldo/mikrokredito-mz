@@ -3,7 +3,7 @@ import axios from 'axios'
 import { useToast } from 'vue-toastification'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '/api/v1',
+  baseURL: '/api/v1',
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 })
