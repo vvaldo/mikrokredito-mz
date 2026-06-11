@@ -1,18 +1,18 @@
-// src/stores/branding.js — configurable login + topbar branding
+// src/stores/branding.js — SIGEM-MICROCREDITO configurable branding
 import { defineStore } from 'pinia'
 
-const BRANDING_VERSION = 'mk_v13' // bump to clear old cached values
+const BRANDING_VERSION = 'sigem_v14'
 
 const DEFAULTS = {
-  name:         'MicroCredit SYSTEM',
+  name:         'SIGEM-MICROCREDITO',
   tagline:      'Sistema Integrado de Gestão de Microcrédito',
-  logoUrl:      '',
+  logoUrl:      '',        // base64 or URL
   faviconUrl:   '',
-  primaryColor: '#185FA5',
-  dangerColor:  '#A32D2D',
-  welcomeTitle: 'Entrar na plataforma',
-  welcomeSub:   'Introduza as suas credenciais para aceder',
-  leftTitle:    'MicroCredit SYSTEM',
+  primaryColor: '#1a6ff5',
+  dangerColor:  '#dc2626',
+  welcomeTitle: 'Aceder ao SIGEM',
+  welcomeSub:   'Sistema Integrado de Gestão de Microcrédito',
+  leftTitle:    'SIGEM-MICROCREDITO',
   leftSub:      'Sistema Integrado de Gestão de Microcrédito',
   poweredBy:    'Powered by: OTECH - Open Technology (www.otech.co.mz)',
   creditPolicy: 'Condição de desembolso: Valores abaixo de 50.000 MZN podem ser desembolsados em menos de 24 horas, desde que todos os documentos obrigatórios estejam validados. De 51.000 a 100.000 MZN, o processo fica condicionado à formalização documental em cartório/escritório.',
@@ -21,7 +21,7 @@ const DEFAULTS = {
     'Simulador com regra do 1/3 salarial',
     'Notificações via Email, SMS e WhatsApp',
     'Pagamentos M-Pesa e e-Mola integrados',
-    'KYC e upload de documentos',
+    'KYC, documentos e upload de comprovativos',
   ],
 }
 
@@ -33,7 +33,6 @@ export const useBrandingStore = defineStore('branding', {
       try {
         const savedVersion = localStorage.getItem('mk_branding_version')
         const saved = localStorage.getItem('mk_branding')
-        // Clear old format if version changed
         if (savedVersion !== BRANDING_VERSION) {
           localStorage.removeItem('mk_branding')
           localStorage.setItem('mk_branding_version', BRANDING_VERSION)
@@ -64,6 +63,20 @@ export const useBrandingStore = defineStore('branding', {
       this.applyFavicon()
     },
 
+    // Convert uploaded file to base64
+    async uploadLogo(file) {
+      const b64 = await fileToBase64(file)
+      this.logoUrl = b64
+      return b64
+    },
+
+    async uploadFavicon(file) {
+      const b64 = await fileToBase64(file)
+      this.faviconUrl = b64
+      this.applyFavicon()
+      return b64
+    },
+
     applyColors() {
       document.documentElement.style.setProperty('--blue-600', this.primaryColor)
       document.documentElement.style.setProperty('--mk-primary', this.primaryColor)
@@ -84,3 +97,12 @@ export const useBrandingStore = defineStore('branding', {
     },
   }
 })
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = e => resolve(e.target.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}

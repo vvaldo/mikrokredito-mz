@@ -6,22 +6,20 @@
         <div v-else
           class="sidebar-item"
           :class="{ active: activeTab === item.tab }"
-          @click="handleClick(item.tab)">
+          @click="handleClick(item)">
           <span v-html="item.icon" />
-          <span>{{ item.label }}</span>
+          <span class="truncate">{{ item.label }}</span>
           <span v-if="item.count" class="badge-count">{{ item.count }}</span>
         </div>
       </template>
     </div>
   </nav>
 </template>
-
 <script setup>
 const props = defineProps({ items: Array, activeTab: String, isOpen: Boolean })
 const emit  = defineEmits(['set-tab', 'close'])
-
-function handleClick(tab) {
-  emit('set-tab', tab)
-  emit('close')  // close on mobile after click
+function handleClick(item) {
+  emit('set-tab', item.tab)
+  emit('close')
 }
 </script>

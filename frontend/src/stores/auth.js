@@ -17,7 +17,8 @@ export const useAuthStore = defineStore('auth', {
     defaultRoute: (s) => {
       const role = s.user?.role
       if (role === 'super_admin') return '/super/dashboard'
-      if (['inst_admin', 'inst_agent'].includes(role)) return '/institution/dashboard'
+      if (role === 'inst_admin') return '/institution/dashboard'
+      if (role === 'inst_agent') return '/agent/dashboard'
       if (role === 'client') return '/client/home'
       return '/login'
     },

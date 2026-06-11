@@ -64,6 +64,24 @@ const routes = [
     ],
   },
 
+
+  // ── Agent de Crédito
+  {
+    path: '/agent',
+    component: () => import('@/components/layout/AgentLayout.vue'),
+    meta: { roles: ['inst_agent'] },
+    children: [
+      { path: '',                  redirect: '/agent/dashboard' },
+      { path: 'dashboard',         component: () => import('@/views/agent/DashboardView.vue') },
+      { path: 'clients',           component: () => import('@/views/agent/ClientsView.vue') },
+      { path: 'register-client',   component: () => import('@/views/institution/ClientsView.vue') },
+      { path: 'applications',      component: () => import('@/views/agent/ApplicationsView.vue') },
+      { path: 'apply',             component: () => import('@/views/institution/ApplicationsView.vue') },
+      { path: 'simulator',         component: () => import('@/views/institution/SimulatorView.vue') },
+      { path: 'profile',           component: () => import('@/views/common/ProfileView.vue') },
+    ],
+  },
+
   // ── Client
   {
     path: '/client',
@@ -78,6 +96,7 @@ const routes = [
       { path: 'payments',  component: () => import('@/views/client/PaymentsView.vue') },
       { path: 'profile',   component: () => import('@/views/client/ProfileView.vue') },
       { path: 'documents', component: () => import('@/views/client/DocumentsView.vue') },
+      { path: 'notifications', component: () => import('@/views/client/NotificationsView.vue') },
     ],
   },
 

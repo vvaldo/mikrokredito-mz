@@ -1,80 +1,59 @@
 <template>
-  <div class="auth-page">
-    <div class="auth-left">
-      <div class="auth-logo">
-        <svg width="52" height="52" viewBox="0 0 52 52" fill="none"><rect width="52" height="52" rx="14" fill="white" opacity=".12"/><path d="M26 10L38 17V31L26 38L14 31V17L26 10Z" fill="white" opacity=".9"/><circle cx="26" cy="24" r="6.5" fill="#E24B4A"/></svg>
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--mk-surface-3);padding:20px">
+    <div style="width:100%;max-width:420px">
+      <!-- Logo -->
+      <div style="text-align:center;margin-bottom:24px">
+        <div style="width:52px;height:52px;border-radius:14px;background:var(--grad-primary);display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:var(--glow-blue)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8"><path d="M12 2L20 7V16L12 21L4 16V7L12 2Z"/><circle cx="12" cy="11.5" r="3.5" fill="white" stroke="none"/></svg>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:var(--blue-400);letter-spacing:.5px;text-transform:uppercase">SIGEM-MICROCREDITO</div>
       </div>
-      <h1 class="auth-brand">MicroCredit SYSTEM</h1>
-      <p class="auth-brand-sub">Sistema Integrado de Gestão de Microcrédito</p>
-      <div class="auth-features">
-        <div class="auth-feature"><span class="auth-feature-icon">✓</span><span>Recuperação segura com token temporário</span></div>
-        <div class="auth-feature"><span class="auth-feature-icon">✓</span><span>Token enviado apenas para email registado</span></div>
-        <div class="auth-feature"><span class="auth-feature-icon">✓</span><span>Auditoria do pedido de redefinição</span></div>
-      </div>
-      <p class="auth-powered">Powered by: OTECH - Open Technology (www.otech.co.mz)</p>
-    </div>
-    <div class="auth-right">
-      <div class="auth-card">
-        <div class="auth-card-header">
-          <h2>Recuperar senha</h2>
-          <p>Informe o email registado para receber o token de redefinição.</p>
-        </div>
 
-        <div v-if="!tokenStep">
-          <div class="form-group">
-            <label class="form-label">Email registado</label>
-            <input class="form-input" type="email" v-model="form.email" placeholder="o_seu@email.com" autocomplete="email" />
+      <div style="background:rgba(17,24,39,.9);backdrop-filter:blur(20px);border:1px solid rgba(26,111,245,.2);border-radius:18px;padding:36px 32px 28px;box-shadow:0 0 40px rgba(26,111,245,.1)">
+        <template v-if="!sent">
+          <h2 style="font-size:20px;font-weight:700;margin-bottom:6px;color:var(--mk-text)">Recuperar palavra-passe</h2>
+          <p style="font-size:13px;color:var(--mk-text-2);margin-bottom:24px">Introduza o seu email e enviaremos um link de recuperação.</p>
+          <form @submit.prevent="submit">
+            <div class="form-group">
+              <label class="form-label">Email <span class="req">*</span></label>
+              <div class="search-wrap">
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4l6 5 6-5"/><rect x="1" y="3" width="14" height="10" rx="2"/></svg>
+                <input class="form-input" type="email" v-model="email" required placeholder="o_seu@email.com" autocomplete="email"/>
+              </div>
+            </div>
+            <div v-if="error" class="alert alert-danger">{{ error }}</div>
+            <button class="btn btn-primary btn-block" type="submit" :class="{loading}" :disabled="loading" style="height:44px;font-size:14px">
+              {{ loading ? '' : '📧 Enviar link de recuperação' }}
+            </button>
+          </form>
+        </template>
+        <template v-else>
+          <div style="text-align:center;padding:16px 0">
+            <div style="font-size:48px;margin-bottom:16px">✅</div>
+            <h2 style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--mk-text)">Email enviado!</h2>
+            <p style="font-size:13px;color:var(--mk-text-2);line-height:1.7">
+              Verifique a caixa de entrada de <strong style="color:var(--blue-400)">{{ email }}</strong> e clique no link para definir a nova palavra-passe.
+            </p>
+            <p style="font-size:12px;color:var(--mk-text-3);margin-top:8px">Se não receber em 5 minutos, verifique a pasta de spam.</p>
           </div>
-          <button class="btn btn-primary btn-block" :disabled="loading" @click="requestToken">
-            {{ loading ? 'A verificar...' : 'Enviar token' }}
-          </button>
+        </template>
+        <div style="text-align:center;margin-top:20px">
+          <RouterLink to="/login" style="font-size:12px;color:var(--blue-400);font-weight:500">← Voltar ao login</RouterLink>
         </div>
-
-        <div v-else>
-          <div class="alert alert-info" style="margin-bottom:14px">Token enviado para o email registado.</div>
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input class="form-input" type="email" v-model="form.email" readonly />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Token</label>
-            <input class="form-input" v-model="form.token" placeholder="token" autocomplete="one-time-code" />
-          </div>
-          <div class="form-group password-field">
-            <label class="form-label">Nova senha</label>
-            <input class="form-input" :type="showPwd ? 'text' : 'password'" v-model="form.new_password" placeholder="Nova senha" />
-            <button type="button" class="pwd-eye" @click="showPwd = !showPwd">{{ showPwd ? 'Ocultar' : 'Mostrar' }}</button>
-          </div>
-          <button class="btn btn-primary btn-block" :disabled="loading" @click="resetPassword">
-            {{ loading ? 'A redefinir...' : 'Redefinir senha' }}
-          </button>
-        </div>
-
-        <p class="auth-footer-link"><RouterLink to="/login">Voltar ao login</RouterLink></p>
       </div>
     </div>
   </div>
 </template>
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useToast } from 'vue-toastification'
+import { RouterLink } from 'vue-router'
 import api from '@/services/api'
-const router = useRouter(); const toast = useToast(); const loading = ref(false); const tokenStep = ref(false); const showPwd = ref(false)
-const form = ref({ email:'', token:'', new_password:'' })
-async function requestToken(){
-  loading.value=true
-  try{ await api.post('/auth/forgot-password',{ email: form.value.email }); tokenStep.value=true; toast.success('Token enviado para o email registado.') }
-  catch(e){ toast.error(e.response?.data?.message || 'Email não encontrado ou erro de envio.') }
-  finally{ loading.value=false }
-}
-async function resetPassword(){
-  loading.value=true
-  try{ await api.post('/auth/reset-password', form.value); toast.success('Senha redefinida. Entre com a nova senha.'); router.push('/login') }
-  catch(e){ toast.error(e.response?.data?.message || 'Erro ao redefinir senha') }
+import { useToast } from 'vue-toastification'
+const toast=useToast(), email=ref(''), loading=ref(false), error=ref(''), sent=ref(false)
+async function submit(){
+  loading.value=true; error.value=''
+  try{ await api.post('/auth/forgot-password',{email:email.value}); sent.value=true }
+  catch(e){ error.value=e.response?.data?.message||'Erro ao enviar email.' }
   finally{ loading.value=false }
 }
 </script>
-<style scoped>
-.auth-page{min-height:100vh;display:grid;grid-template-columns:420px 1fr}.auth-left{background:linear-gradient(160deg,var(--blue-700) 0%,var(--blue-600) 60%,#1a6db8 100%);padding:48px 40px;display:flex;flex-direction:column;color:rgba(255,255,255,.92)}.auth-logo{margin-bottom:20px}.auth-brand{font-size:26px;font-weight:600;margin-bottom:6px}.auth-brand-sub{font-size:13px;opacity:.7;margin-bottom:40px}.auth-features{display:flex;flex-direction:column;gap:14px;flex:1}.auth-feature{display:flex;align-items:center;gap:12px;font-size:13px}.auth-feature-icon{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center}.auth-powered{font-size:11px;opacity:.65}.auth-right{display:flex;align-items:center;justify-content:center;background:var(--mk-surface-3);padding:40px}.auth-card{width:min(440px,92vw);background:var(--color-background-primary,#fff);border:1px solid var(--color-border-tertiary,#e2e8f0);border-radius:24px;padding:28px;box-shadow:0 20px 60px rgba(15,23,42,.12)}.auth-card-header h2{font-size:22px;margin-bottom:4px}.auth-card-header p{color:var(--color-text-secondary);margin-bottom:22px}.password-field{position:relative}.pwd-eye{position:absolute;right:8px;bottom:7px;border:0;background:transparent;color:var(--blue-600);font-size:12px;cursor:pointer;padding:6px 8px;border-radius:8px}.pwd-eye:hover{background:var(--color-background-secondary)}
-</style>
