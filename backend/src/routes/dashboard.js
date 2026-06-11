@@ -100,4 +100,41 @@ router.get('/client', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ── SUPER ADMIN dashboard ──────────────────────
+router.get('/super', authenticate, async (req, res, next) => {
+  if (req.user.role !== 'super_admin') return res.status(403).json({ success:false, message:'Sem acesso' });
+  try {
+    const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+    const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0);
+    const yearStart  = new Date(new Date().getFullYear(),0,1);
+
+    const [
+      totalClients, kycApproved, kycBlocked,
+      activeLoans, portfolio,
+      failedNotifs, paymentsMonth, paymentsYear
+    ] = await Promise.all([
+      User.count({ where: { role: 'client' } }),
+      Client.count({ where: { kyc_status: 'approved' } }),
+      Client.count({ where: { kyc_status: { [Op.in]: ['incomplete','rejected','blocked'] } } }),
+      Loan.count({ where: { status: { [Op.in]: ['active','overdue'] } } }),
+      Loan.sum('outstanding_balance', { where: { status: { [Op.in]: ['active','overdue'] } } }),
+      NotificationLog.count({ where: { status: 'failed' } }),
+      PaymentTransaction.sum('amount', { where: { status: 'confirmed', created_at: { [Op.gte]: monthStart } } }),
+      PaymentTransaction.sum('amount', { where: { status: 'confirmed', created_at: { [Op.gte]: yearStart } } }),
+    ]);
+
+    res.json({ success: true, data: {
+      total_clients:        Number(totalClients || 0),
+      kyc_approved:         Number(kycApproved || 0),
+      kyc_blocked:          Number(kycBlocked || 0),
+      active_loans:         Number(activeLoans || 0),
+      total_portfolio:      Number(portfolio || 0),
+      failed_notifications: Number(failedNotifs || 0),
+      payments_month:       Number(paymentsMonth || 0),
+      payments_year:        Number(paymentsYear || 0),
+      refreshed_at:         new Date().toISOString(),
+    }});
+  } catch (err) { next(err); }
+});
+
 module.exports = router;
