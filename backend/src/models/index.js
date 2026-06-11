@@ -75,6 +75,17 @@ const Client = sequelize.define('Client', {
   credit_score: { type: DataTypes.INTEGER, defaultValue: 0 },
   crc_status: { type: DataTypes.ENUM('nao_consta', 'consta', 'em_verificacao'), defaultValue: 'em_verificacao' },
   crc_comment: DataTypes.TEXT,
+  // ── New fields v14 (added by alter:true on restart) ──
+  doc_type:           DataTypes.STRING,        // BI, Passaporte, DIRE, Outro
+  doc_issue_date:     DataTypes.DATEONLY,
+  doc_expiry_date:    DataTypes.DATEONLY,
+  birth_place:        DataTypes.STRING,
+  employment_type:    DataTypes.STRING,        // self_employed, employed, civil_servant, retired
+  employer_name:      DataTypes.STRING,
+  employer_location:  DataTypes.STRING,
+  dependents:         { type: DataTypes.INTEGER, defaultValue: 0 },
+  guarantors:         DataTypes.JSONB,         // [{name, phone}]
+  photo_url:          DataTypes.TEXT,          // base64 or URL
 }, { tableName: 'clients', timestamps: true, underscored: true });
 
 // ─────────────────────────────────────────────

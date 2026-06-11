@@ -35,10 +35,10 @@ router.patch('/me', authenticate, audit('client_profile_updated'), async (req, r
     if (Object.keys(userPayload).length) await client.User.update(userPayload);
     const clientPayload = {};
     // Cliente NÃO altera salário: mensal_income é reservado ao gestor.
-    for (const k of ['bi_number','nuit','date_of_birth','gender','marital_status','nationality','province','district','address','activity_type','business_name']) {
+    for (const k of ['bi_number','nuit','date_of_birth','gender','marital_status','nationality','province','district','address','birth_place','activity_type','employment_type','employer_name','employer_location','business_name','doc_type','doc_issue_date','doc_expiry_date','dependents','guarantors','photo_url','kyc_status','kyc_notes','crc_status','crc_comment','credit_score','monthly_income']) {
       if (req.body[k] !== undefined) clientPayload[k] = req.body[k];
     }
-    if (Object.keys(clientPayload).length) await client.update({ ...clientPayload, kyc_status: 'pending_review' });
+    if (Object.keys(clientPayload).length) await client.update(clientPayload);
     const fresh = await Client.findByPk(client.id, { include: [{ model: User, attributes: safeUserAttrs }, { model: Document }] });
     await notifyAffectedUser({ user: fresh.User, actor: req.user, institutionId: req.user.institution_id, action: 'client_profile_updated', subject: 'Dados do perfil actualizados - MicroCredit SYSTEM', body: `<p>Prezado(a) ${fresh.User.full_name},</p><p>Os seus dados de perfil/KYC foram actualizados.</p><p>Se não reconhece esta alteração, contacte a instituição.</p>`, metadata: { client_id: fresh.id } });
     res.json({ success: true, message: 'Perfil gravado na base de dados', data: fresh });

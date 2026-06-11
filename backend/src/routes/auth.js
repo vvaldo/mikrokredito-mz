@@ -99,7 +99,37 @@ router.post('/register',
 
       const password_hash = await bcrypt.hash(password, 12);
       const user = await User.create({ id: uuidv4(), full_name, email, phone, password_hash, role: 'client' });
-      await Client.create({ id: uuidv4(), user_id: user.id });
+      await Client.create({
+        id: uuidv4(),
+        user_id:          user.id,
+        // Basic
+        date_of_birth:    req.body.date_of_birth    || null,
+        gender:           req.body.gender            || null,
+        marital_status:   req.body.marital_status    || null,
+        nationality:      req.body.nationality       || 'Mozambican',
+        dependents:       parseInt(req.body.dependents) || 0,
+        // Document
+        doc_type:         req.body.doc_type          || 'BI',
+        bi_number:        req.body.bi_number         || null,
+        nuit:             req.body.nuit              || null,
+        doc_issue_date:   req.body.doc_issue_date    || null,
+        doc_expiry_date:  req.body.doc_expiry_date   || null,
+        // Address
+        birth_place:      req.body.birth_place       || null,
+        province:         req.body.province          || null,
+        district:         req.body.district          || null,
+        address:          req.body.address           || null,
+        // Work
+        activity_type:    req.body.activity_type     || null,
+        employment_type:  req.body.employment_type   || null,
+        employer_name:    req.body.employer_name     || null,
+        employer_location:req.body.employer_location || null,
+        monthly_income:   parseFloat(req.body.monthly_income) || 0,
+        // Extra
+        guarantors:       req.body.guarantors        || [],
+        photo_url:        req.body.photoBase64       || null,
+        kyc_status:       'incomplete',
+      });
 
       await triggerEvent('client_registered', {
         recipientEmail: email,

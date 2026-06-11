@@ -1,57 +1,29 @@
-/* ================================================================
-   SIGEM — Base Reset & Typography — Dark Futuristic
-   ================================================================ */
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-html {
-  font-size: 14px;
-  -webkit-text-size-adjust: 100%;
-  scroll-behavior: smooth;
-  color-scheme: dark;
-}
-
-body {
-  font-family: var(--mk-font);
-  font-size: var(--mk-text-base);
-  font-weight: var(--mk-w-normal);
-  line-height: 1.6;
-  color: var(--mk-text);
-  background: var(--mk-surface-3);
-  min-height: 100vh;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-a { color: var(--blue-400); text-decoration: none; }
-a:hover { color: var(--cyan-400); text-decoration: underline; }
-button, input, select, textarea { font-family: var(--mk-font); font-size: inherit; }
-button { cursor: pointer; border: none; background: transparent; }
-button:disabled { cursor: not-allowed; opacity: 0.4; }
-img, svg { display: block; max-width: 100%; }
-ul, ol { list-style: none; }
-table { border-collapse: collapse; width: 100%; }
+/* ── Reset ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px;-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{font-family:var(--mk-font);font-size:var(--mk-text-base);line-height:1.6;color:var(--text-1);background:var(--bg);min-height:100vh;-webkit-font-smoothing:antialiased}
+[data-theme=dark] body{color-scheme:dark}
+a{color:var(--blue-600);text-decoration:none}
+a:hover{color:var(--blue-700);text-decoration:underline}
+button,input,select,textarea{font-family:var(--mk-font);font-size:inherit}
+button{cursor:pointer;border:none;background:transparent}
+button:disabled{cursor:not-allowed;opacity:.45}
+img,svg{display:block;max-width:100%}
+ul,ol{list-style:none}
+table{border-collapse:collapse;width:100%}
 
 /* ── Scrollbar ── */
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: var(--mk-surface-3); }
-::-webkit-scrollbar-thumb { background: rgba(148,163,184,.2); border-radius: 999px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,.4); }
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-3)}
 
-/* ── Selection ── */
-::selection { background: rgba(26,111,245,.35); color: #fff; }
-
-/* ── Focus ── */
-:focus-visible { outline: 2px solid var(--blue-600); outline-offset: 2px; border-radius: 4px; }
+::selection{background:rgba(24,95,165,.2);color:var(--text-1)}
+:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px;border-radius:4px}
 
 /* ── Animations ── */
-@keyframes fadeIn       { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-@keyframes slideIn      { from { opacity:0; transform:translateX(-12px); } to { opacity:1; transform:translateX(0); } }
-@keyframes pulse-glow   { 0%,100% { box-shadow: 0 0 8px rgba(26,111,245,.4); } 50% { box-shadow: 0 0 20px rgba(26,111,245,.7); } }
-@keyframes scan-line    { 0% { transform: translateY(-100%); } 100% { transform: translateY(100vh); } }
-@keyframes float        { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-@keyframes counter-up   { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
-
-.anim-fade   { animation: fadeIn .3s ease both; }
-.anim-slide  { animation: slideIn .3s ease both; }
-.anim-float  { animation: float 3s ease-in-out infinite; }
+@keyframes fadeIn   {from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin     {to{transform:rotate(360deg)}}
+@keyframes shimmer  {0%{background-position:200% 0}100%{background-position:-200% 0}}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+.anim-fade{animation:fadeIn .25s ease both}

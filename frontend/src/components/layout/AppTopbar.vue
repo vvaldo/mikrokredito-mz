@@ -11,9 +11,9 @@
     <RouterLink to="/" class="topbar-brand">
       <div class="topbar-logo">
         <img v-if="brand.logoUrl" :src="brand.logoUrl" :alt="brand.name" />
-        <svg v-else width="20" height="20" viewBox="0 0 20 20" fill="none">
-          <path d="M10 2L17 6V13L10 17L3 13V6L10 2Z" fill="white" opacity=".9"/>
-          <circle cx="10" cy="9.5" r="3" fill="#dc2626"/>
+        <svg v-else width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M9 2L14 5.5V11L9 14.5L4 11V5.5L9 2Z" fill="white" opacity=".9"/>
+          <circle cx="9" cy="8.5" r="2.5" fill="#E24B4A"/>
         </svg>
       </div>
       <div class="topbar-brand-text">
@@ -23,6 +23,12 @@
     </RouterLink>
 
     <div class="topbar-right">
+      <!-- Dark/Light mode toggle -->
+      <button class="theme-toggle" @click="theme.toggle()" :title="theme.dark ? 'Modo claro' : 'Modo escuro'">
+        {{ theme.dark ? '☀️' : '🌙' }}
+      </button>
+
+      <!-- Notification bell -->
       <button class="topbar-bell" @click="$emit('toggle-notifs')" title="Notificações">
         <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M9 2v1M6 14a3 3 0 006 0"/>
@@ -32,7 +38,7 @@
       </button>
 
       <span v-if="notifStore.unreadCount > 0"
-        style="background:var(--red-600);color:#fff;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;cursor:pointer;flex-shrink:0;box-shadow:0 0 8px rgba(220,38,38,.4)"
+        style="background:#A32D2D;color:#fff;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;cursor:pointer;flex-shrink:0"
         @click="$emit('toggle-notifs')">{{ notifStore.unreadCount > 99 ? '99+' : notifStore.unreadCount }}</span>
 
       <div class="user-chip">
@@ -48,18 +54,30 @@
     </div>
   </header>
 </template>
+
 <script setup>
 import { computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useNotificationStore } from '@/stores/notifications'
 import { useBrandingStore } from '@/stores/branding'
-const auth=useAuthStore(), notifStore=useNotificationStore(), brand=useBrandingStore()
-defineProps({ unreadCount:{ type:Number, default:0 } })
-defineEmits(['toggle-notifs','logout','toggle-sidebar'])
-const firstName=computed(()=>auth.user?.full_name?.split(' ')[0]||'')
-const initials=computed(()=>auth.user?.full_name?.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?')
+import { useThemeStore } from '@/stores/theme'
+
+const auth   = useAuthStore()
+const notifStore = useNotificationStore()
+const brand  = useBrandingStore()
+const theme  = useThemeStore()
+
+defineProps({ unreadCount: { type: Number, default: 0 } })
+defineEmits(['toggle-notifs', 'logout', 'toggle-sidebar'])
+
+const firstName = computed(() => auth.user?.full_name?.split(' ')[0] || '')
+const initials  = computed(() => auth.user?.full_name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?')
+
 let timer
-onMounted(()=>{ notifStore.fetchUnreadCount(); timer=setInterval(()=>notifStore.fetchUnreadCount(),30000) })
-onUnmounted(()=>clearInterval(timer))
+onMounted(() => {
+  notifStore.fetchUnreadCount()
+  timer = setInterval(() => notifStore.fetchUnreadCount(), 30000)
+})
+onUnmounted(() => clearInterval(timer))
 </script>
