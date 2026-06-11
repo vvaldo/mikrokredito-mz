@@ -73,7 +73,7 @@
   --mk-font-mono: 'JetBrains Mono', monospace;
 
   /* ── Type scale ── */
-  --mk-text-xs:3b11px; --mk-text-sm:12px; --mk-text-base:13px;
+  --mk-text-xs:11px; --mk-text-sm:12px; --mk-text-base:13px;
   --mk-text-md:14px;   --mk-text-lg:16px; --mk-text-xl:20px;
   --mk-text-2xl:24px;  --mk-text-3xl:30px;
   --mk-w-normal:400;   --mk-w-medium:500; --mk-w-semi:600;
