@@ -1,8 +1,11 @@
 <template>
   <div class="app-shell">
-    <AppTopbar :unread-count="unreadCount" @logout="logout" @notifications-read="refreshUnread" />
+    <AppTopbar :unread-count="unreadCount" @logout="logout"
+      @toggle-sidebar="sidebarOpen = !sidebarOpen" @notifications-read="refreshUnread" />
+    <!-- Mobile overlay -->
+    <div class="sidebar-overlay" :class="{ open: sidebarOpen }" @click="sidebarOpen = false" />
     <div class="body-layout">
-      <AppSidebar :items="menuItems" :active-tab="activeTab" @set-tab="setTab" />
+      <AppSidebar :items="menuItems" :active-tab="activeTab" :is-open="sidebarOpen" @set-tab="setTab" @close="sidebarOpen = false" />
       <main class="main-content"><RouterView @notifications-read="refreshUnread" /><AppFooter/></main>
     </div>
   </div>
@@ -15,7 +18,8 @@ import api from '@/services/api'
 import AppTopbar from '@/components/layout/AppTopbar.vue'
 import AppSidebar from '@/components/layout/AppSidebar.vue'
 import AppFooter from '@/components/layout/AppFooter.vue'
-const router = useRouter(), route = useRoute(), auth = useAuthStore()
+const router = useRouter()
+const sidebarOpen = ref(false), route = useRoute(), auth = useAuthStore()
 const unreadCount = ref(0)
 const icons = {
   home:`<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 6l6-4 6 4v7H1V6z"/><rect x="5" y="9" width="4" height="4"/></svg>`,

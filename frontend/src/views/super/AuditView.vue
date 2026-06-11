@@ -2,60 +2,183 @@
   <div class="modern-page">
     <section class="modern-hero">
       <h1>Auditoria</h1>
-      <p>Registo de actividade dos utilizadores, aprovações, alterações e acessos críticos.</p>
+      <p>Registo de todas as acções críticas — aprovações, alterações, acessos e operações do sistema.</p>
       <div class="hero-actions">
-        <button class="btn btn-primary" @click="act('Actualizar')">Actualizar</button>
-        <button class="btn" @click="act('Exportar')">Exportar Excel</button>
-        <span class="hero-chip">Dados com isolamento por instituição</span>
+        <button class="btn btn-primary" @click="load">Actualizar</button>
+        <button class="btn" @click="exportCSV">Exportar CSV</button>
+        <button class="btn" @click="exportPDF">Imprimir / PDF</button>
       </div>
     </section>
-    <div class="kpi-grid">
-      <div class="kpi good"><div class="label">Eventos</div><div class="value">{{ rows.length }}</div><div class="note">+12% este mês</div></div>
-      <div class="kpi"><div class="label">Valor em análise</div><div class="value">{{ mzn(total) }}</div><div class="note">Carteira operacional</div></div>
-      <div class="kpi warn"><div class="label">Pendentes</div><div class="value">23</div><div class="note">Requerem validação documental</div></div>
-      <div class="kpi danger"><div class="label">Notificações</div><div class="value">3</div><div class="note">Falhas para reenvio</div></div>
+
+    <!-- Filters -->
+    <div class="modern-card" style="padding:14px;margin-bottom:14px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input class="input search" v-model="q" placeholder="Pesquisar utilizador ou acção…" style="flex:1;min-width:180px">
+        <select class="input" v-model="filterRole" style="width:150px">
+          <option value="">Todos os roles</option>
+          <option value="super_admin">Super Admin</option>
+          <option value="inst_admin">Admin Inst.</option>
+          <option value="inst_agent">Agente</option>
+          <option value="client">Cliente</option>
+          <option value="system">Sistema</option>
+        </select>
+        <select class="input" v-model="filterEntity" style="width:140px">
+          <option value="">Todas entidades</option>
+          <option value="Loan">Empréstimo</option>
+          <option value="Client">Cliente</option>
+          <option value="Payment">Pagamento</option>
+          <option value="Institution">Instituição</option>
+          <option value="Product">Produto</option>
+        </select>
+        <button class="btn" @click="load" :class="{ loading: loading }">{{ loading ? '' : 'Aplicar' }}</button>
+      </div>
     </div>
-    
-    <div class="modern-grid-2">
-      <div class="modern-card">
-        <h2>Movimento mensal</h2><p class="muted">Evolução de pedidos, aprovações e desembolsos</p>
-        <div class="chart-bars">
-          <div class="chart-bar"><div class="bar" style="height:55%"></div><span class="bar-label">Jan</span></div>
-          <div class="chart-bar"><div class="bar alt" style="height:38%"></div><span class="bar-label">Fev</span></div>
-          <div class="chart-bar"><div class="bar" style="height:72%"></div><span class="bar-label">Mar</span></div>
-          <div class="chart-bar"><div class="bar warn" style="height:48%"></div><span class="bar-label">Abr</span></div>
-          <div class="chart-bar"><div class="bar" style="height:86%"></div><span class="bar-label">Mai</span></div>
+
+    <!-- KPIs -->
+    <div class="kpi-grid">
+      <div class="kpi good">
+        <div class="label">Total de eventos</div>
+        <div class="value">{{ rows.length }}</div>
+        <div class="note">Carregados</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Aprovações</div>
+        <div class="value">{{ rows.filter(r => r.action?.includes('approv') || r.action?.includes('aprovado')).length }}</div>
+        <div class="note">Este período</div>
+      </div>
+      <div class="kpi warn">
+        <div class="label">Alterações</div>
+        <div class="value">{{ rows.filter(r => r.action?.includes('updat') || r.action?.includes('edit')).length }}</div>
+        <div class="note">Dados editados</div>
+      </div>
+      <div class="kpi danger">
+        <div class="label">Utilizadores</div>
+        <div class="value">{{ new Set(rows.map(r => r.user_id)).size }}</div>
+        <div class="note">Distintos activos</div>
+      </div>
+    </div>
+
+    <div class="modern-card" id="audit-print-area">
+      <div class="table-head">
+        <div><h2>Registo de auditoria</h2><p class="muted">{{ filtered.length }} eventos encontrados</p></div>
+      </div>
+      <div v-if="loading" style="padding:32px;text-align:center;color:var(--mk-text-2)">A carregar…</div>
+      <div v-else-if="filtered.length === 0" class="empty-state">Nenhum evento encontrado.</div>
+      <table v-else class="modern-table">
+        <thead>
+          <tr>
+            <th>Utilizador</th>
+            <th>Role</th>
+            <th>Acção</th>
+            <th>Entidade</th>
+            <th>Data/Hora</th>
+            <th>IP</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in filtered" :key="r.id">
+            <td>
+              <strong>{{ r.user_name || '—' }}</strong>
+              <br><span class="muted">{{ r.user_id?.slice(0, 8) }}…</span>
+            </td>
+            <td>
+              <span class="status-pill" :class="roleClass(r.user_role)">{{ r.user_role || '—' }}</span>
+            </td>
+            <td style="max-width:280px;word-break:break-word">{{ r.action || r.description || '—' }}</td>
+            <td><span class="status-pill st-submitted">{{ r.entity || '—' }}</span></td>
+            <td class="muted" style="white-space:nowrap">{{ fmt(r.created_at) }}</td>
+            <td class="muted">{{ r.ip_address || '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Pagination -->
+      <div v-if="meta.total > meta.limit" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-size:12px;color:var(--mk-text-2)">
+        <span>{{ meta.total }} total · página {{ meta.page }} de {{ Math.ceil(meta.total/meta.limit) }}</span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm" :disabled="meta.page <= 1" @click="changePage(-1)">‹ Anterior</button>
+          <button class="btn btn-sm" :disabled="meta.page >= Math.ceil(meta.total/meta.limit)" @click="changePage(1)">Próxima ›</button>
         </div>
       </div>
-      <div class="modern-card">
-        <h2>Estado da carteira</h2><p class="muted">Distribuição por estado</p>
-        <div class="donut"><div>78%<br><span class="muted">saudável</span></div></div>
-        <div class="legend"><span><b></b>Aprovado</span><span class="r"><b></b>Rejeitado</span><span class="w"><b></b>Pendente</span><span class="g"><b></b>Outros</span></div>
-      </div>
-    </div>
-    <div class="modern-card">
-      <h2>Eventos recentes</h2><p class="muted">Botões de visualizar, editar, aprovar, ver status e documentos activados com feedback.</p>
-      <table class="modern-table"><thead><tr><th>Ref.</th><th>Cliente</th><th>Instituição</th><th>Valor</th><th>Docs</th><th>Status</th><th>Acções</th></tr></thead>
-        <tbody><tr v-for="r in rows" :key="r.id"><td><strong>{{ r.id }}</strong></td><td>{{ r.name }}<br><span class="muted">{{ r.date }}</span></td><td>{{ r.institution }}</td><td>{{ mzn(r.amount) }}</td><td>{{ r.docs }}</td><td><span :class="statusClass(r.status)">{{ r.status }}</span></td><td><div class="action-row"><button class="btn btn-sm" @click="act('Visualizar', r)">Visualizar</button><button class="btn btn-sm btn-blue-soft" @click="act('Editar', r)">Editar</button><button class="btn btn-sm btn-primary" @click="act('Aprovar', r)">Aprovar</button><button class="btn btn-sm" @click="act('Ver status', r)">Status</button><button class="btn btn-sm" @click="act('Ver documento', r)">Documento</button><button class="btn btn-sm btn-danger-soft" @click="remove(r)">Apagar</button></div></td></tr></tbody>
-      </table>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import api from '@/services/api'
 import { useToast } from 'vue-toastification'
-const toast = useToast()
-const rows = ref([
-  { id: 'EMP-2401', name: 'Maria da Graça', institution: 'Banco Oportunidade', amount: 45000, status: 'approved', docs: '4/4', date: '05/05/2026' },
-  { id: 'EMP-2402', name: 'João Macuácua', institution: 'Fundo Crescer', amount: 80000, status: 'under_review', docs: '3/4', date: '04/05/2026' },
-  { id: 'EMP-2403', name: 'Fátima Nhantumbo', institution: 'Banco Oportunidade', amount: 25000, status: 'submitted', docs: '4/4', date: '03/05/2026' },
-  { id: 'EMP-2404', name: 'António Mondlane', institution: 'Crédito Rápido', amount: 120000, status: 'rejected', docs: '2/4', date: '02/05/2026' }
-])
-const total = computed(()=>rows.value.reduce((s,r)=>s+r.amount,0))
-function mzn(v){ return Number(v||0).toLocaleString('pt-MZ',{style:'currency',currency:'MZN',maximumFractionDigits:0}) }
-function act(label,row){ if(label==='Aprovar' && row){ row.status='approved'; toast.success(`${row.id} aprovado`) } else if(label==='Editar' && row){ toast.info(`Modo edição aberto para ${row.id}`) } else if(label==='Visualizar' && row){ toast.info(`Visualização: ${row.id} · ${row.name} · ${mzn(row.amount)}`) } else if(label==='Ver status' && row){ toast.info(`Status actual: ${row.status}`) } else if(label==='Ver documento' && row){ toast.info(`Documentos do pedido ${row.id}: ${row.docs}`) } else { toast.success(`${label}: ${row?.id || row?.name || 'registo'} processado`) } }
-function remove(row){ rows.value = rows.value.filter(r=>r!==row); toast.success('Registo removido da lista') }
-function statusClass(s){ return 'status-pill st-'+String(s||'pending') }
-</script>
 
+const toast = useToast()
+const loading = ref(false)
+const rows    = ref([])
+const q       = ref('')
+const filterRole   = ref('')
+const filterEntity = ref('')
+const meta = ref({ total: 0, page: 1, limit: 50 })
+
+const filtered = computed(() => {
+  let data = rows.value
+  if (q.value) {
+    const s = q.value.toLowerCase()
+    data = data.filter(r =>
+      (r.user_name || '').toLowerCase().includes(s) ||
+      (r.action || r.description || '').toLowerCase().includes(s)
+    )
+  }
+  if (filterRole.value) data = data.filter(r => r.user_role === filterRole.value)
+  if (filterEntity.value) data = data.filter(r => r.entity === filterEntity.value)
+  return data
+})
+
+async function load() {
+  loading.value = true
+  try {
+    const { data } = await api.get('/audit', {
+      params: { page: meta.value.page, limit: meta.value.limit }
+    })
+    rows.value = data.data || []
+    meta.value = { ...meta.value, ...(data.meta || {}) }
+  } catch (e) {
+    toast.error('Erro ao carregar auditoria')
+    rows.value = []
+  } finally { loading.value = false }
+}
+
+function changePage(delta) {
+  meta.value.page = Math.max(1, meta.value.page + delta)
+  load()
+}
+
+function exportCSV() {
+  const cols = ['user_name','user_role','action','entity','ip_address','created_at']
+  const header = 'Utilizador,Role,Acção,Entidade,IP,Data'
+  const csvRows = filtered.value.map(r =>
+    cols.map(c => `"${(r[c] || '').toString().replace(/"/g, '""')}"`).join(',')
+  )
+  const blob = new Blob([header + '\n' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `auditoria_${new Date().toISOString().slice(0,10)}.csv`
+  a.click()
+}
+
+function exportPDF() {
+  const area = document.getElementById('audit-print-area')
+  if (!area) return window.print()
+  const w = window.open('', '_blank')
+  w.document.write(`<html><head><title>Auditoria — MikroKrédito MZ</title>
+    <style>body{font-family:sans-serif;font-size:12px;padding:20px}table{width:100%;border-collapse:collapse}
+    th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}th{background:#f1f5f9;font-weight:600}</style></head><body>`)
+  w.document.write(`<h2>Auditoria — ${new Date().toLocaleDateString('pt-MZ')}</h2>`)
+  w.document.write(area.innerHTML)
+  w.document.write('</body></html>')
+  w.document.close()
+  w.print()
+}
+
+const fmt = v => v ? new Date(v).toLocaleString('pt-MZ') : '—'
+const roleClass = r => ({ super_admin:'st-approved', inst_admin:'st-disbursed', inst_agent:'st-submitted', client:'st-pending', system:'st-queued' }[r] || 'st-pending')
+
+onMounted(load)
+</script>
