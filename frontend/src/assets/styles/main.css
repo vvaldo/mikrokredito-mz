@@ -1,15 +1,18 @@
 /* ================================================================
-   SIGEM-MICROCREDITO — Tema OTECH ERP Corporate v14.3
+   SIGEM-MICROCREDITO — Tema OTECH ERP Corporate v14.4
+   main.css — único ponto de import CSS, ordem correcta
    ================================================================ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-@import './tokens.css';
-@import './layout.css';
-@import './components.css';
-@import './forms.css';
-@import './buttons.css';
-@import './modals.css';
 
-/* ── Layout compat ── */
+@import './tokens.css';      /* 1. Variáveis ERP */
+@import './base.css';        /* 2. Bridges de variáveis */
+@import './layout.css';      /* 3. App shell, topbar, sidebar (.sidebar), main-content */
+@import './components.css';  /* 4. Cards, badges, tabelas, alerts, kpi */
+@import './forms.css';       /* 5. Inputs, selects, labels */
+@import './buttons.css';     /* 6. Botões */
+@import './modals.css';      /* 7. Modais, drawers, transições */
+
+/* ── Utilitários extra ── */
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
 .toolbar-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .toolbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
@@ -24,13 +27,9 @@
 .upload-card span{display:block;font-size:11px;color:var(--mk-text-3);margin-top:3px}
 @media(max-width:640px){.form-grid,.mini-row,.doc-upload-grid{grid-template-columns:1fr}}
 
-/* ── Login Auth page ── */
+/* ── Login / Auth ── */
 .auth-page{min-height:100vh;display:grid;grid-template-columns:400px 1fr}
-.auth-left{
-  padding:44px 36px;display:flex;flex-direction:column;
-  background:var(--grad-navy);color:rgba(255,255,255,.9);
-  position:relative;overflow:hidden;
-}
+.auth-left{padding:44px 36px;display:flex;flex-direction:column;background:var(--grad-navy);color:rgba(255,255,255,.9);position:relative;overflow:hidden}
 .auth-left::after{content:'';position:absolute;right:-60px;top:-60px;width:240px;height:240px;border-radius:50%;background:rgba(0,123,255,.15);filter:blur(50px);pointer-events:none}
 .auth-brand{font-size:22px;font-weight:800;margin-bottom:5px;letter-spacing:.3px;text-transform:uppercase;position:relative;z-index:1}
 .auth-brand-sub{font-size:12px;opacity:.55;margin-bottom:24px;position:relative;z-index:1;letter-spacing:.5px;text-transform:uppercase}
