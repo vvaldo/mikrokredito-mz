@@ -1,10 +1,11 @@
 // src/stores/branding.js — SIGEM-MICROCREDITO configurable branding
 import { defineStore } from 'pinia'
+import api from '@/services/api'
 
 const BRANDING_VERSION = 'sigem_v14'
 
 const DEFAULTS = {
-  name:         'SIGEM-MICROCREDITO',
+  name:         'SIGEM-OTECH',
   tagline:      'Sistema Integrado de Gestão de Microcrédito',
   logoUrl:      '',        // base64 or URL
   faviconUrl:   '',
@@ -12,9 +13,10 @@ const DEFAULTS = {
   dangerColor:  '#dc2626',
   welcomeTitle: 'Aceder ao SIGEM',
   welcomeSub:   'Sistema Integrado de Gestão de Microcrédito',
-  leftTitle:    'SIGEM-MICROCREDITO',
+  leftTitle:    'SIGEM-OTECH',
   leftSub:      'Sistema Integrado de Gestão de Microcrédito',
   poweredBy:    'Powered by: OTECH - Open Technology (www.otech.co.mz)',
+  hideDemoCredentials: false,
   creditPolicy: 'Condição de desembolso: Valores abaixo de 50.000 MZN podem ser desembolsados em menos de 24 horas, desde que todos os documentos obrigatórios estejam validados. De 51.000 a 100.000 MZN, o processo fica condicionado à formalização documental em cartório/escritório.',
   features: [
     'Multi-tenant — isolamento por instituição',
@@ -43,9 +45,23 @@ export const useBrandingStore = defineStore('branding', {
       this.applyColors()
       this.applyFavicon()
       this.loaded = true
+      // Sincroniza com o servidor (fonte de verdade partilhada entre dispositivos/sessões)
+      this.syncFromServer()
     },
 
-    save(patch) {
+    async syncFromServer() {
+      try {
+        const { data } = await api.get('/platform-settings')
+        if (data?.data && Object.keys(data.data).length) {
+          Object.assign(this.$state, data.data)
+          localStorage.setItem('mk_branding', JSON.stringify(data.data))
+          this.applyColors()
+          this.applyFavicon()
+        }
+      } catch (e) {}
+    },
+
+    async save(patch) {
       Object.assign(this.$state, patch)
       const toSave = {}
       Object.keys(DEFAULTS).forEach(k => { toSave[k] = this[k] })
@@ -53,14 +69,16 @@ export const useBrandingStore = defineStore('branding', {
       localStorage.setItem('mk_branding_version', BRANDING_VERSION)
       this.applyColors()
       this.applyFavicon()
+      await api.put('/platform-settings', toSave)
     },
 
-    reset() {
+    async reset() {
       Object.assign(this.$state, { ...DEFAULTS })
       localStorage.removeItem('mk_branding')
       localStorage.setItem('mk_branding_version', BRANDING_VERSION)
       this.applyColors()
       this.applyFavicon()
+      await api.put('/platform-settings', { ...DEFAULTS })
     },
 
     // Convert uploaded file to base64

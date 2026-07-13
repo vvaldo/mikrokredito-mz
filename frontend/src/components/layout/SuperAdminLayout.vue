@@ -59,6 +59,7 @@ const menuItems = computed(() => [
   { tab:'institutions', label:'Instituições',    icon:I.user,   count:4, to:'/super/institutions' },
   { tab:'products',     label:'Aprovar Produtos',icon:I.tag,    to:'/super/products' },
   { tab:'users',        label:'Utilizadores',    icon:I.user,   to:'/super/users' },
+  { tab:'clients',      label:'Clientes',        icon:I.user,   to:'/super/clients' },
   { tab:'roles',        label:'Perfis/Privilégios',icon:I.shield,to:'/super/roles' },
   { tab:'branding',     label:'Marca / Login',   icon:I.cog,    to:'/super/branding' },
   { tab:'smtp-test',    label:'Testar SMTP',     icon:I.email,  to:'/super/smtp-test' },

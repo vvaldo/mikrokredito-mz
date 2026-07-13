@@ -82,17 +82,19 @@
           </button>
         </form>
 
-        <div class="auth-divider"><span>contas de demonstração</span></div>
+        <template v-if="!branding.hideDemoCredentials">
+          <div class="auth-divider"><span>contas de demonstração</span></div>
 
-        <div class="demo-grid">
-          <button v-for="d in demos" :key="d.role" class="demo-btn" @click="fillDemo(d)">
-            <div class="demo-icon" :style="{ background: d.color }">{{ d.icon }}</div>
-            <div>
-              <div class="demo-label">{{ d.label }}</div>
-              <div class="demo-email">{{ d.email }}</div>
-            </div>
-          </button>
-        </div>
+          <div class="demo-grid">
+            <button v-for="d in demos" :key="d.role" class="demo-btn" @click="fillDemo(d)">
+              <div class="demo-icon" :style="{ background: d.color }">{{ d.icon }}</div>
+              <div>
+                <div class="demo-label">{{ d.label }}</div>
+                <div class="demo-email">{{ d.email }}</div>
+              </div>
+            </button>
+          </div>
+        </template>
 
         <p class="auth-footer-link">
           Não tem conta? <RouterLink to="/register">Criar conta</RouterLink>
@@ -184,21 +186,21 @@ async function submit() {
   align-items:center; justify-content:center; padding:32px 24px;
 }
 .auth-card {
-  background:rgba(17,24,39,.9);
+  background:#ffffffe6;
   backdrop-filter:blur(20px);
-  border:1px solid rgba(26,111,245,.2);
+  border:1px solid rgba(26,111,245,.15);
   border-radius:18px; padding:36px 32px 28px;
   width:100%; max-width:420px;
-  box-shadow:0 0 40px rgba(26,111,245,.1), 0 20px 60px rgba(0,0,0,.5);
+  box-shadow:0 0 40px rgba(0,123,255,.08), 0 20px 50px rgba(10,35,66,.16);
 }
 .auth-card-header { margin-bottom:24px; }
 .auth-card-header h2 { font-size:20px; font-weight:700; margin-bottom:4px; color:var(--mk-text); }
 .auth-card-header p  { font-size:12px; color:var(--mk-text-2); }
 .auth-divider { position:relative; text-align:center; margin:18px 0; color:var(--mk-text-3); font-size:10px; text-transform:uppercase; letter-spacing:.5px; }
 .auth-divider::before { content:''; position:absolute; top:50%; left:0; right:0; height:1px; background:rgba(148,163,184,.1); }
-.auth-divider span { position:relative; background:rgba(17,24,39,.9); padding:0 10px; }
+.auth-divider span { position:relative; background:#ffffffe6; padding:0 10px; }
 .demo-grid { display:flex; flex-direction:column; gap:7px; margin-bottom:18px; }
-.demo-btn { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:8px; border:1px solid rgba(148,163,184,.12); background:rgba(255,255,255,.03); cursor:pointer; transition:.15s; text-align:left; font-family:var(--mk-font); }
+.demo-btn { display:flex; align-items:center; gap:10px; padding:9px 11px; border-radius:8px; border:1px solid rgba(10,35,66,.09); background:rgba(10,35,66,.02); cursor:pointer; transition:.15s; text-align:left; font-family:var(--mk-font); }
 .demo-btn:hover { border-color:rgba(26,111,245,.3); background:rgba(26,111,245,.08); }
 .demo-icon { width:30px; height:30px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
 .demo-label { font-size:12px; font-weight:600; color:var(--mk-text); }

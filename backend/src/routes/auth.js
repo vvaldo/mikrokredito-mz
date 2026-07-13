@@ -99,7 +99,7 @@ router.post('/register',
 
       const password_hash = await bcrypt.hash(password, 12);
       const user = await User.create({ id: uuidv4(), full_name, email, phone, password_hash, role: 'client' });
-      await Client.create({
+      const client = await Client.create({
         id: uuidv4(),
         user_id:          user.id,
         // Basic
@@ -137,7 +137,7 @@ router.post('/register',
         data: { clientName: full_name },
       });
 
-      res.status(201).json({ success: true, message: 'Conta criada. Verifique o seu email.' });
+      res.status(201).json({ success: true, message: 'Conta criada. Verifique o seu email.', data: { client: { id: client.id } } });
     } catch (err) { next(err); }
   }
 );

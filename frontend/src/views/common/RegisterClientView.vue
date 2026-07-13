@@ -347,7 +347,7 @@ async function submit() {
   saving.value = true; error.value = ''
   try {
     if (isEdit.value) {
-      await api.put(`/clients/${route.params.id}`, { ...f.value })
+      await api.patch(`/clients/${route.params.id}`, { ...f.value })
       // Upload pending docs
       for (const [type, file] of Object.entries(uploadedDocs.value)) {
         if (!file?.raw) continue

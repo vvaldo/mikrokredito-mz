@@ -54,6 +54,10 @@
             <label class="form-label">Política de crédito (caixa no login)</label>
             <textarea class="form-textarea" v-model="form.creditPolicy" rows="3"></textarea>
           </div>
+          <div class="form-group" style="display:flex;align-items:center;gap:10px;margin-top:6px">
+            <label class="toggle"><input type="checkbox" v-model="form.hideDemoCredentials" /><span class="toggle-track"></span></label>
+            <span style="font-size:12px;color:var(--mk-text-1)">Ocultar contas de demonstração no ecrã de login</span>
+          </div>
         </div>
 
         <!-- UPLOAD Logo + Favicon -->
@@ -197,7 +201,7 @@ const form = reactive({
   name:'',tagline:'',logoUrl:'',faviconUrl:'',
   primaryColor:'#1a6ff5',dangerColor:'#dc2626',
   welcomeTitle:'',welcomeSub:'',leftTitle:'',leftSub:'',
-  poweredBy:'',creditPolicy:'',features:[],
+  poweredBy:'',creditPolicy:'',features:[],hideDemoCredentials:false,
 })
 
 function load() {
@@ -207,19 +211,27 @@ function load() {
     dangerColor:brand.dangerColor, welcomeTitle:brand.welcomeTitle,
     welcomeSub:brand.welcomeSub, leftTitle:brand.leftTitle, leftSub:brand.leftSub,
     poweredBy:brand.poweredBy, creditPolicy:brand.creditPolicy,
-    features:[...(brand.features||[])],
+    features:[...(brand.features||[])], hideDemoCredentials:brand.hideDemoCredentials,
   })
 }
 
-function save() {
-  brand.save({ ...form, features:[...form.features.filter(f=>f.trim())] })
-  toast.success('✅ Configurações guardadas e aplicadas em toda a plataforma')
+async function save() {
+  try {
+    await brand.save({ ...form, features:[...form.features.filter(f=>f.trim())] })
+    toast.success('✅ Configurações guardadas e aplicadas em toda a plataforma')
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Erro ao gravar configurações no servidor')
+  }
 }
 
-function reset() {
-  brand.reset()
-  load()
-  toast.info('Configurações repostas para o padrão SIGEM')
+async function reset() {
+  try {
+    await brand.reset()
+    load()
+    toast.info('Configurações repostas para o padrão SIGEM')
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Erro ao repor configurações no servidor')
+  }
 }
 
 function previewColors() {

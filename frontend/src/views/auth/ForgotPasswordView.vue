@@ -9,7 +9,7 @@
         <div style="font-size:13px;font-weight:700;color:var(--blue-400);letter-spacing:.5px;text-transform:uppercase">SIGEM-MICROCREDITO</div>
       </div>
 
-      <div style="background:rgba(17,24,39,.9);backdrop-filter:blur(20px);border:1px solid rgba(26,111,245,.2);border-radius:18px;padding:36px 32px 28px;box-shadow:0 0 40px rgba(26,111,245,.1)">
+      <div style="background:#ffffffe6;backdrop-filter:blur(20px);border:1px solid rgba(26,111,245,.15);border-radius:18px;padding:36px 32px 28px;box-shadow:0 0 40px rgba(0,123,255,.08), 0 20px 50px rgba(10,35,66,.16)">
         <template v-if="!sent">
           <h2 style="font-size:20px;font-weight:700;margin-bottom:6px;color:var(--mk-text)">Recuperar palavra-passe</h2>
           <p style="font-size:13px;color:var(--mk-text-2);margin-bottom:24px">Introduza o seu email e enviaremos um link de recuperação.</p>

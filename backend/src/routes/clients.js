@@ -102,7 +102,7 @@ router.patch('/:id', authenticate, authorize('inst_admin','inst_agent','super_ad
     for (const k of ['full_name','email','phone','status']) if (req.body[k] !== undefined) userPayload[k] = req.body[k];
     if (Object.keys(userPayload).length) await client.User.update(userPayload);
     const clientPayload = {};
-    for (const k of ['bi_number','nuit','date_of_birth','gender','marital_status','nationality','province','district','address','activity_type','business_name','monthly_income','kyc_status','kyc_notes','credit_score','crc_status','crc_comment']) {
+    for (const k of ['bi_number','nuit','date_of_birth','gender','marital_status','nationality','province','district','address','activity_type','business_name','monthly_income','kyc_status','kyc_notes','credit_score','crc_status','crc_comment','doc_type','doc_issue_date','doc_expiry_date','birth_place','employment_type','employer_name','employer_location','dependents','guarantors','photo_url']) {
       if (req.body[k] !== undefined) clientPayload[k] = req.body[k];
     }
     if (Object.keys(clientPayload).length) await client.update(clientPayload);

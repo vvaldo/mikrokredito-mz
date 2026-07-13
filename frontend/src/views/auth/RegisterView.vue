@@ -401,10 +401,10 @@ async function onPhoto(e) {
   align-items:flex-start; justify-content:center; padding:32px 24px; overflow-y:auto;
 }
 .auth-card {
-  background:rgba(17,24,39,.9); backdrop-filter:blur(20px);
-  border:1px solid rgba(26,111,245,.2); border-radius:18px;
+  background:#ffffffe6; backdrop-filter:blur(20px);
+  border:1px solid rgba(26,111,245,.15); border-radius:18px;
   padding:32px 30px 26px; width:100%; max-width:580px;
-  box-shadow:0 0 40px rgba(26,111,245,.1);
+  box-shadow:0 0 40px rgba(0,123,255,.08), 0 20px 50px rgba(10,35,66,.16);
 }
 .auth-card-header { margin-bottom:20px; }
 .auth-card-header h2 { font-size:18px; font-weight:700; margin-bottom:4px; color:var(--mk-text); }

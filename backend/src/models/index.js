@@ -326,6 +326,14 @@ const AuditLog = sequelize.define('AuditLog', {
 }, { tableName: 'audit_logs', timestamps: true, underscored: true });
 
 // ─────────────────────────────────────────────
+// PLATFORM SETTING (singleton — global branding, not tied to an institution)
+// ─────────────────────────────────────────────
+const PlatformSetting = sequelize.define('PlatformSetting', {
+  id: { type: DataTypes.STRING, primaryKey: true, defaultValue: 'default' },
+  data: { type: DataTypes.JSONB, defaultValue: {} },
+}, { tableName: 'platform_settings', timestamps: true, underscored: true });
+
+// ─────────────────────────────────────────────
 // ASSOCIATIONS
 // ─────────────────────────────────────────────
 Institution.hasMany(User, { foreignKey: 'institution_id' });
@@ -369,5 +377,5 @@ module.exports = {
   CreditProduct, LoanApplication, Loan,
   PaymentSchedule, PaymentTransaction,
   NotificationTemplate, NotificationRule, NotificationLog,
-  AuditLog,
+  AuditLog, PlatformSetting,
 };
