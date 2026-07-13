@@ -1,0 +1,536 @@
+/* ============================================================
+   SIGEM-MICROCREDITO — topbar.css
+   Topbar — tema OTECH ERP
+   ============================================================ */
+
+.app-topbar {
+  height:        var(--mk-topbar-h);
+  background:    var(--mk-topbar-bg);
+  display:       flex;
+  align-items:   center;
+  padding:       0 22px;
+  gap:           14px;
+  position:      sticky;
+  top:           0;
+  z-index:       100;
+  flex-shrink:   0;
+  box-shadow:    0 1px 0 rgba(255,255,255,0.05);
+}
+
+.topbar-spacer { flex: 1; }
+
+.topbar-brand {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  color:       white;
+}
+
+.topbar-module {
+  background:   rgba(0,123,255,0.20);
+  border:       1px solid rgba(0,123,255,0.35);
+  color:        #6FBAFF;
+  font-size:    11px;
+  padding:      3px 10px;
+  border-radius: var(--mk-radius-full);
+  font-weight:  700;
+  letter-spacing: 0.4px;
+}
+
+.topbar-date {
+  color:     rgba(255,255,255,0.45);
+  font-size: var(--mk-text-xs);
+}
+
+.topbar-divider {
+  width:      1px;
+  height:     22px;
+  background: rgba(255,255,255,0.12);
+}
+
+.topbar-user {
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+  cursor:      pointer;
+  padding:     5px 8px;
+  border-radius: var(--mk-radius);
+  transition:  var(--mk-transition);
+}
+.topbar-user:hover { background: rgba(255,255,255,0.07); }
+
+.topbar-user-name  { color: rgba(255,255,255,0.85); font-size: var(--mk-text-sm); font-weight: 500; }
+.topbar-user-arrow { color: rgba(255,255,255,0.35); font-size: 10px; }
+
+.topbar-avatar {
+  width:         30px;
+  height:        30px;
+  border-radius: 50%;
+  background:    var(--mk-blue);
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  color:         white;
+  font-size:     11px;
+  font-weight:   700;
+  flex-shrink:   0;
+}
+
+.topbar-avatar img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.topbar-licenca {
+  color:     #4AE08A;
+  font-size: var(--mk-text-xs);
+  display:   flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Notificações */
+.topbar-notif {
+  position:  relative;
+  cursor:    pointer;
+  color:     rgba(255,255,255,0.55);
+  font-size: 18px;
+  padding:   5px;
+  border-radius: var(--mk-radius-sm);
+  transition: var(--mk-transition);
+}
+.topbar-notif:hover { background: rgba(255,255,255,0.07); color: white; }
+.notif-badge {
+  position:      absolute;
+  top:           2px; right: 2px;
+  width:         8px; height: 8px;
+  background:    var(--mk-red);
+  border-radius: 50%;
+  border:        2px solid var(--mk-topbar-bg);
+}
+
+/* ── Dropdown utilizador ──────────────────────────────────────── */
+.user-dropdown {
+  position:      absolute;
+  top:           calc(100% + 6px);
+  right:         16px;
+  background:    white;
+  border-radius: var(--mk-radius-md);
+  box-shadow:    var(--mk-shadow-md);
+  min-width:     190px;
+  z-index:       200;
+  overflow:      hidden;
+  animation:     slideIn 0.15s ease;
+}
+
+.user-dropdown-header {
+  padding:     12px 14px;
+  border-bottom: 1px solid var(--mk-border);
+}
+
+.user-dropdown-name { font-weight: 700; font-size: var(--mk-text-base); color: var(--mk-dark); }
+.user-dropdown-role { font-size: var(--mk-text-xs); color: var(--mk-muted); margin-top: 1px; }
+
+.dropdown-item {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  padding:     9px 14px;
+  font-size:   var(--mk-text-base);
+  color:       var(--mk-text);
+  cursor:      pointer;
+  transition:  background 0.1s;
+  border:      none;
+  background:  none;
+  width:       100%;
+  text-align:  left;
+  font-family: var(--mk-font);
+}
+.dropdown-item:hover { background: var(--mk-bg); }
+.dropdown-item.danger { color: var(--mk-red); }
+.dropdown-sep { height: 1px; background: var(--mk-border); margin: 4px 0; }
+
+
+/* ============================================================
+   SIGEM-MICROCREDITO — dashboard.css
+   Dashboard e KPIs — tema OTECH ERP
+   ============================================================ */
+
+/* ── Gráficos ────────────────────────────────────────────────── */
+.chart-card {
+  background:    var(--mk-surface);
+  border:        1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  padding:       18px;
+  box-shadow:    var(--mk-shadow-sm);
+}
+
+.chart-card .card-title { margin-bottom: 14px; }
+
+.chart-canvas-wrap { position: relative; }
+
+/* ── Alertas Dashboard ───────────────────────────────────────── */
+.alert-panel { display: flex; flex-direction: column; gap: 8px; }
+
+.alert-card {
+  display:     flex;
+  align-items: center;
+  gap:         12px;
+  padding:     12px 14px;
+  border-radius: var(--mk-radius);
+  font-size:   var(--mk-text-base);
+  cursor:      pointer;
+  transition:  var(--mk-transition);
+}
+
+.alert-card.danger  { background: rgba(211,47,47,0.06);  border: 1px solid rgba(211,47,47,0.20); }
+.alert-card.warning { background: rgba(255,152,0,0.06);  border: 1px solid rgba(255,152,0,0.22); }
+.alert-card.info    { background: rgba(0,123,255,0.05);  border: 1px solid rgba(0,123,255,0.18); }
+.alert-card.success { background: rgba(0,168,67,0.05);   border: 1px solid rgba(0,168,67,0.18); }
+
+.alert-card:hover { transform: translateY(-1px); box-shadow: var(--mk-shadow-sm); }
+.alert-card .icon { font-size: 20px; flex-shrink: 0; }
+.alert-body strong { display: block; font-weight: 600; color: var(--mk-dark); }
+.alert-body span   { font-size: var(--mk-text-xs); color: var(--mk-muted); }
+
+
+/* ============================================================
+   SIGEM-MICROCREDITO — microcredito.css
+   Componentes específicos de microcrédito — tema OTECH ERP
+   ============================================================ */
+
+/* ── Tabela de Pedidos ───────────────────────────────────────── */
+.pedido-num {
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size:   var(--mk-text-xs);
+  font-weight: 700;
+  color:       var(--mk-blue);
+}
+
+.cliente-info .nome     { font-weight: 600; }
+.cliente-info .nuit     { font-size: var(--mk-text-xs); color: var(--mk-muted); }
+.cliente-info .telefone { font-size: var(--mk-text-xs); color: var(--mk-muted); }
+
+.valor-montante {
+  font-weight: 700;
+  color:       var(--mk-dark);
+  white-space: nowrap;
+}
+
+.prazo-meses {
+  font-size: var(--mk-text-xs);
+  color:     var(--mk-muted);
+}
+
+/* ── Card de Pedido de Crédito ──────────────────────────────── */
+.pedido-card {
+  background:    var(--mk-surface);
+  border:        1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  padding:       16px;
+  transition:    var(--mk-transition);
+  cursor:        pointer;
+  position:      relative;
+  overflow:      hidden;
+}
+
+.pedido-card:hover {
+  box-shadow:    var(--mk-shadow);
+  transform:     translateY(-2px);
+  border-color:  rgba(0,123,255,0.25);
+}
+
+.pedido-card-header {
+  display:         flex;
+  justify-content: space-between;
+  align-items:     flex-start;
+  margin-bottom:   12px;
+}
+
+.pedido-card-num   { font-family: monospace; font-size: 11px; font-weight: 700; color: var(--mk-blue); }
+.pedido-card-nome  { font-weight: 700; font-size: var(--mk-text-md); color: var(--mk-dark); margin-top: 2px; }
+.pedido-card-valor { font-size: var(--mk-text-xl); font-weight: 800; color: var(--mk-dark); }
+.pedido-card-sub   { font-size: var(--mk-text-xs); color: var(--mk-muted); }
+
+.pedido-card-footer {
+  display:      flex;
+  justify-content: space-between;
+  align-items:  center;
+  margin-top:   12px;
+  padding-top:  10px;
+  border-top:   1px solid var(--mk-border);
+  font-size:    var(--mk-text-xs);
+  color:        var(--mk-muted);
+}
+
+/* ── Simulador de Crédito ────────────────────────────────────── */
+.simulador-result {
+  background:    var(--mk-bg);
+  border:        1px solid var(--mk-border);
+  border-radius: var(--mk-radius);
+  padding:       16px;
+  margin-top:    14px;
+}
+
+.simulador-row {
+  display:         flex;
+  justify-content: space-between;
+  padding:         6px 0;
+  font-size:       var(--mk-text-base);
+  border-bottom:   1px solid var(--mk-border);
+}
+
+.simulador-row:last-child { border-bottom: none; }
+.simulador-row .label     { color: var(--mk-muted); }
+.simulador-row .value     { font-weight: 600; color: var(--mk-dark); }
+
+.simulador-total {
+  display:         flex;
+  justify-content: space-between;
+  padding:         10px 0 0;
+  font-size:       var(--mk-text-lg);
+  font-weight:     800;
+  color:           var(--mk-dark);
+  border-top:      2px solid var(--mk-dark);
+  margin-top:      6px;
+}
+
+/* ── Pipeline Kanban ─────────────────────────────────────────── */
+.pipeline-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.pipeline-col {
+  background:    var(--mk-bg);
+  border-radius: var(--mk-radius);
+  padding:       12px;
+}
+
+.pipeline-col-header {
+  display:       flex;
+  align-items:   center;
+  justify-content: space-between;
+  font-size:     var(--mk-text-xs);
+  font-weight:   700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--mk-border);
+}
+
+.pipeline-col-count {
+  font-size:     var(--mk-text-xs);
+  padding:       2px 8px;
+  border-radius: var(--mk-radius-full);
+  font-weight:   700;
+}
+
+/* ── Ficha do Cliente ────────────────────────────────────────── */
+.cliente-ficha {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+}
+
+.cliente-foto-wrap {
+  display:        flex;
+  flex-direction: column;
+  align-items:    center;
+  gap:            12px;
+}
+
+.cliente-foto {
+  width:         120px;
+  height:        120px;
+  border-radius: 50%;
+  object-fit:    cover;
+  border:        3px solid var(--mk-border);
+  background:    var(--mk-bg);
+}
+
+.cliente-foto-initials {
+  width:          120px;
+  height:         120px;
+  border-radius:  50%;
+  background:     var(--mk-grad-primary);
+  display:        flex;
+  align-items:    center;
+  justify-content: center;
+  font-size:      36px;
+  font-weight:    800;
+  color:          white;
+}
+
+/* ── Passos de Registo (wizard) ──────────────────────────────── */
+.wizard-steps {
+  display:     flex;
+  align-items: center;
+  gap:         0;
+  margin-bottom: 24px;
+}
+
+.wizard-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.wizard-step:not(:last-child)::after {
+  content:    '';
+  position:   absolute;
+  top:        18px;
+  left:       60%;
+  width:      80%;
+  height:     2px;
+  background: var(--mk-border-dark);
+  z-index:    0;
+}
+
+.wizard-step.done:not(:last-child)::after   { background: var(--mk-green); }
+.wizard-step.active:not(:last-child)::after { background: linear-gradient(90deg, var(--mk-blue), var(--mk-border-dark)); }
+
+.wizard-dot {
+  width:         36px;
+  height:        36px;
+  border-radius: 50%;
+  border:        2px solid var(--mk-border-dark);
+  background:    white;
+  display:       flex;
+  align-items:   center;
+  justify-content: center;
+  font-size:     13px;
+  font-weight:   700;
+  color:         var(--mk-muted);
+  position:      relative;
+  z-index:       1;
+  transition:    var(--mk-transition);
+  margin-bottom: 6px;
+}
+
+.wizard-step.done   .wizard-dot { background: var(--mk-green); border-color: var(--mk-green);  color: white; }
+.wizard-step.active .wizard-dot {
+  background:   var(--mk-blue);
+  border-color: var(--mk-blue);
+  color:        white;
+  box-shadow:   0 0 0 4px rgba(0,123,255,0.15);
+}
+
+.wizard-label {
+  font-size:      var(--mk-text-xs);
+  color:          var(--mk-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight:    600;
+}
+
+.wizard-step.done   .wizard-label,
+.wizard-step.active .wizard-label { color: var(--mk-dark); }
+
+
+/* ============================================================
+   SIGEM-MICROCREDITO — login.css
+   Página de Login — tema OTECH ERP
+   ============================================================ */
+
+.login-page {
+  min-height:      100vh;
+  background:      linear-gradient(135deg, #0A2342 0%, #1A3A5C 60%, #0A2342 100%);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  padding:         24px;
+  position:        relative;
+  overflow:        hidden;
+}
+
+/* Efeito subtil de fundo */
+.login-page::before {
+  content:       '';
+  position:      absolute;
+  top:           -80px;
+  right:         -80px;
+  width:         400px;
+  height:        400px;
+  border-radius: 50%;
+  background:    rgba(0,123,255,0.08);
+  pointer-events: none;
+}
+
+.login-page::after {
+  content:       '';
+  position:      absolute;
+  bottom:        -60px;
+  left:          100px;
+  width:         280px;
+  height:        280px;
+  border-radius: 50%;
+  background:    rgba(0,168,67,0.05);
+  pointer-events: none;
+}
+
+.login-card {
+  background:    white;
+  border-radius: var(--mk-radius-xl);
+  padding:       40px 36px;
+  width:         100%;
+  max-width:     420px;
+  box-shadow:    0 32px 80px rgba(0,0,0,0.35);
+  position:      relative;
+  z-index:       1;
+  animation:     scaleIn 0.25s ease;
+}
+
+.login-logo {
+  text-align:    center;
+  margin-bottom: 28px;
+}
+
+.login-logo-icon {
+  width:          64px;
+  height:         64px;
+  background:     var(--mk-grad-primary);
+  border-radius:  16px;
+  display:        inline-flex;
+  align-items:    center;
+  justify-content: center;
+  font-size:      24px;
+  font-weight:    800;
+  color:          white;
+  margin-bottom:  14px;
+  box-shadow:     0 4px 20px rgba(0,123,255,0.35);
+}
+
+.login-logo-name {
+  font-size:      22px;
+  font-weight:    800;
+  color:          var(--mk-dark);
+  letter-spacing: 1px;
+}
+
+.login-logo-sub {
+  font-size:  var(--mk-text-sm);
+  color:      var(--mk-muted);
+  margin-top: 4px;
+}
+
+.login-title {
+  font-size:     var(--mk-text-md);
+  font-weight:   700;
+  color:         var(--mk-dark);
+  text-align:    center;
+  margin-bottom: 22px;
+}
+
+.login-footer {
+  text-align:  center;
+  margin-top:  20px;
+  font-size:   var(--mk-text-xs);
+  color:       var(--mk-muted);
+}

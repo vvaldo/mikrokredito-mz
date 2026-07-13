@@ -1,0 +1,314 @@
+/* ================================================================
+   MicroCredit SYSTEM — v27 Responsive + Admin Theme Fixes
+   Apply over the public repo vvaldo/mikrokredito-mz.
+   Purpose: standardise admin screens, keep menu visible on mobile,
+   improve dashboards, tables, reports and audit screens.
+================================================================ */
+
+:root {
+  --mc-admin-gradient: linear-gradient(135deg, rgba(24,95,165,.10), rgba(163,45,45,.07));
+  --mc-card-shadow: 0 16px 35px rgba(15, 23, 42, .07);
+}
+
+/* Standard dashboard shell */
+.dashboard-shell,
+.admin-dashboard,
+.report-page,
+.audit-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--mk-sp-4, 16px);
+}
+
+.admin-hero,
+.report-hero,
+.audit-hero {
+  background: var(--mc-admin-gradient);
+  border: 1px solid var(--mk-border, #e5e7eb);
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: var(--mc-card-shadow);
+}
+
+.admin-hero h1,
+.report-hero h1,
+.audit-hero h1 {
+  margin: 0;
+  font-size: clamp(20px, 2vw, 28px);
+  line-height: 1.15;
+  color: var(--mk-text, #0f172a);
+}
+
+.admin-hero p,
+.report-hero p,
+.audit-hero p {
+  margin: 6px 0 0;
+  color: var(--mk-text-2, #64748b);
+  font-size: 13px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.kpi-card {
+  background: var(--mk-surface, #fff);
+  border: 1px solid var(--mk-border, #e5e7eb);
+  border-radius: 16px;
+  padding: 14px 16px;
+  box-shadow: var(--mc-card-shadow);
+  min-width: 0;
+}
+
+.kpi-label {
+  color: var(--mk-text-2, #64748b);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 700;
+}
+
+.kpi-value {
+  margin-top: 6px;
+  font-size: clamp(20px, 2vw, 30px);
+  line-height: 1;
+  font-weight: 800;
+  color: var(--blue-700, #0c447c);
+  word-break: break-word;
+}
+
+.kpi-foot {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--mk-text-2, #64748b);
+}
+
+.admin-card,
+.report-card,
+.audit-card {
+  background: var(--mk-surface, #fff);
+  border: 1px solid var(--mk-border, #e5e7eb);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--mc-card-shadow);
+}
+
+.admin-section-title,
+.report-section-title,
+.audit-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.filter-bar .field,
+.filter-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--mk-text-2, #64748b);
+}
+
+.filter-bar input,
+.filter-bar select {
+  min-height: 36px;
+  border: 1px solid var(--mk-border-2, #d1d5db);
+  border-radius: 10px;
+  padding: 7px 10px;
+  background: #fff;
+  color: var(--mk-text, #0f172a);
+}
+
+.export-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Tables must never break mobile layout */
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-wrap table {
+  min-width: 760px;
+}
+
+.audit-json {
+  max-width: 460px;
+  max-height: 130px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--mk-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  line-height: 1.45;
+  background: var(--mk-surface-2, #f8fafc);
+  border: 1px solid var(--mk-border, #e5e7eb);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+/* Critical fix: previous CSS hid sidebar on phone. Keep it visible as a horizontal menu. */
+@media (max-width: 900px) {
+  .app-shell { min-height: 100dvh; }
+  .topbar {
+    padding: 0 10px;
+    gap: 8px;
+  }
+  .topbar-name { font-size: 13px; }
+  .topbar-tagline { display: none; }
+  .user-chip span:not(.avatar),
+  .topbar-user-name { display: none; }
+
+  .body-layout {
+    height: auto !important;
+    min-height: calc(100dvh - var(--mk-topbar-h, 52px));
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .sidebar {
+    display: flex !important;
+    width: 100% !important;
+    min-height: 54px;
+    max-height: 64px;
+    flex-direction: row !important;
+    align-items: stretch;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    position: sticky;
+    top: var(--mk-topbar-h, 52px);
+    z-index: 40;
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--mk-border, #e5e7eb);
+    background: rgba(255,255,255,.96);
+    backdrop-filter: blur(12px);
+  }
+
+  .sidebar-section {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch;
+    gap: 2px;
+    padding: 6px 8px !important;
+    flex-shrink: 0;
+  }
+
+  .sidebar-label,
+  .sidebar-sep { display: none !important; }
+
+  .sidebar-item {
+    min-width: max-content;
+    border-left: 0 !important;
+    border-bottom: 2px solid transparent;
+    border-radius: 10px;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+    max-width: 180px;
+  }
+
+  .sidebar-item.active {
+    border-bottom-color: var(--blue-600, #185FA5);
+    background: var(--blue-50, #e6f1fb);
+  }
+
+  .main-content {
+    padding: 12px !important;
+    overflow: visible !important;
+  }
+
+  .content-inner { max-width: 100%; }
+
+  .page-header,
+  .admin-hero,
+  .report-hero,
+  .audit-hero {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-actions,
+  .toolbar-actions,
+  .export-actions { width: 100%; }
+
+  .page-actions .btn,
+  .toolbar-actions .btn,
+  .export-actions .btn { flex: 1; justify-content: center; }
+
+  .kpi-grid,
+  .grid-4,
+  .grid-3,
+  .grid-2,
+  .grid-stat {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  .card,
+  .admin-card,
+  .report-card,
+  .audit-card {
+    padding: 12px !important;
+    border-radius: 14px;
+  }
+
+  .filter-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+  }
+
+  .filter-bar .field,
+  .filter-bar label,
+  .filter-bar input,
+  .filter-bar select { width: 100%; }
+}
+
+@media (max-width: 560px) {
+  .kpi-grid,
+  .grid-4,
+  .grid-3,
+  .grid-2,
+  .grid-stat,
+  .filter-bar {
+    grid-template-columns: 1fr !important;
+  }
+  .kpi-value { font-size: 24px; }
+  .table-wrap table { min-width: 680px; }
+}
+
+@media print {
+  .topbar,
+  .sidebar,
+  .page-actions,
+  .toolbar,
+  .filter-bar,
+  .export-actions,
+  .btn { display: none !important; }
+  .body-layout,
+  .main-content { height: auto !important; overflow: visible !important; padding: 0 !important; }
+  .card,
+  .admin-card,
+  .report-card,
+  .audit-card { box-shadow: none !important; border-color: #ddd !important; }
+}
