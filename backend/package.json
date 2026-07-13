@@ -6,6 +6,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/models/seed.js",
+    "clean": "node src/models/clean.js",
     "worker": "node src/queues/worker.js"
   },
   "dependencies": {

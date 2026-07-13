@@ -76,7 +76,10 @@ async function seed() {
   console.log('  Super Admin : superadmin@mikrokredito.co.mz / demo1234');
   console.log('  Admin BO    : admin@bancooportunidade.co.mz / demo1234');
   console.log('  Cliente     : osimone@unisced.edu.mz / demo1234');
-  process.exit(0);
 }
 
-seed().catch(err => { console.error('Seed error:', err); process.exit(1); });
+module.exports = seed;
+
+if (require.main === module) {
+  seed().then(() => process.exit(0)).catch(err => { console.error('Seed error:', err); process.exit(1); });
+}

@@ -18,17 +18,20 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.05);
   --shadow:    0 2px 8px rgba(0,0,0,.09), 0 1px 3px rgba(0,0,0,.06);
   --shadow-md: 0 4px 16px rgba(0,0,0,.10), 0 2px 6px rgba(0,0,0,.07);
-  --topbar-bg: #185FA5;
+  --topbar-bg: linear-gradient(115deg, #185FA5 0%, #1a6fc4 55%, #146aa8 100%);
   --sidebar-bg:#ffffff;
   --glass-bg:  rgba(255,255,255,.92);
   --glass-border: rgba(0,0,0,.06);
+  --grid-line: rgba(15,23,42,.035);
+  --bg-glow-1: rgba(24,95,165,.07);
+  --bg-glow-2: rgba(34,211,238,.05);
 }
 
 /* ── DARK ── */
 [data-theme=dark] {
-  --bg:        #0a0f1c;
-  --bg-card:   #111827;
-  --bg-card-2: #1a2235;
+  --bg:        #05070f;
+  --bg-card:   #0d1424;
+  --bg-card-2: #141d33;
   --bg-input:  rgba(255,255,255,.04);
   --border:    rgba(148,163,184,.1);
   --border-2:  rgba(148,163,184,.18);
@@ -38,10 +41,13 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,.4);
   --shadow:    0 2px 8px rgba(0,0,0,.5),  0 1px 3px rgba(0,0,0,.4);
   --shadow-md: 0 4px 16px rgba(0,0,0,.55),0 2px 6px rgba(0,0,0,.4);
-  --topbar-bg: rgba(10,15,28,.95);
-  --sidebar-bg:rgba(10,15,28,.95);
-  --glass-bg:  rgba(17,24,39,.85);
-  --glass-border: rgba(148,163,184,.08);
+  --topbar-bg: linear-gradient(120deg, #060a16 0%, #0d1a35 55%, #0a1630 100%);
+  --sidebar-bg:rgba(6,9,18,.97);
+  --glass-bg:  rgba(13,20,36,.72);
+  --glass-border: rgba(34,211,238,.14);
+  --grid-line: rgba(96,165,250,.06);
+  --bg-glow-1: rgba(24,95,165,.18);
+  --bg-glow-2: rgba(34,211,238,.12);
 }
 
 /* ── Brand (same in both themes) ── */
@@ -91,11 +97,13 @@
   /* Gradients */
   --grad-primary: linear-gradient(135deg, #185FA5 0%, #2270C0 100%);
   --grad-danger:  linear-gradient(135deg, #A32D2D 0%, #E24B4A 100%);
-  --grad-hero:    linear-gradient(135deg, #0d1b3e 0%, #1a2a6c 50%, #2a1a6c 100%);
+  --grad-hero:    linear-gradient(135deg, #060a18 0%, #0d1440 45%, #1c1150 78%, #2a1a6c 100%);
+  --grad-accent:  linear-gradient(135deg, #185FA5 0%, #22d3ee 100%);
 
   /* Glow (subtle in light, stronger in dark) */
-  --glow-blue:  0 0 12px rgba(24,95,165,.2);
-  --glow-red:   0 0 12px rgba(163,45,45,.2);
+  --glow-blue:  0 0 16px rgba(24,95,165,.28);
+  --glow-red:   0 0 16px rgba(163,45,45,.24);
+  --glow-cyan:  0 0 16px rgba(34,211,238,.30);
 
   /* Focus rings */
   --mk-focus-blue: 0 0 0 3px rgba(24,95,165,.22);
