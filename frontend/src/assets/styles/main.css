@@ -1,8 +1,24 @@
+/* SIGEM-MICROCREDITO — Main v14.2 — Light default + Dark mode toggle */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 @import './tokens.css';
 @import './base.css';
 @import './layout.css';
 @import './components.css';
-@import './buttons.css';
 @import './forms.css';
+@import './buttons.css';
 @import './modals.css';
-@import './responsive-admin.css';
+
+.doc-upload-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}
+.upload-card{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:70px;border:1.5px dashed var(--border-2);border-radius:var(--mk-r-md);padding:12px;background:var(--bg-card-2);cursor:pointer;transition:.15s}
+.upload-card:hover{border-color:var(--blue-600);background:var(--blue-50)}
+.upload-card.ok{border-style:solid;border-color:var(--mk-success);background:var(--mk-success-bg)}
+[data-theme=dark] .upload-card:hover{background:rgba(24,95,165,.08)}
+.upload-card strong{display:block;font-size:12px;font-weight:600;color:var(--text-1)}
+.upload-card span{display:block;font-size:11px;color:var(--text-2);margin-top:3px;word-break:break-word}
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.toolbar-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.toolbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.table-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.mini-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;align-items:center;gap:8px;background:var(--bg-card-2);border:1px solid var(--border);border-radius:var(--mk-r);padding:10px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}
+@media(max-width:640px){.form-grid,.mini-row{grid-template-columns:1fr}.doc-upload-grid{grid-template-columns:1fr}}

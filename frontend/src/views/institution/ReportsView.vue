@@ -1,98 +1,133 @@
 <template>
-  <section class="report-page">
-    <div class="report-hero">
-      <div>
-        <h1>Relatórios globais</h1>
-        <p>Carteira, pagamentos e risco consolidados a partir da base de dados.</p>
+  <div class="modern-page">
+    <section class="modern-hero">
+      <h1>Relatórios</h1>
+      <p>Exportação de dados da sua instituição — clientes, pedidos, pagamentos e notificações.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" @click="loadAll">Actualizar dados</button>
       </div>
-      <div class="export-actions">
-        <button class="btn btn-blue" @click="loadAll">Actualizar</button>
-        <button class="btn" @click="downloadCsv">Exportar CSV/Excel</button>
-        <button class="btn btn-red-soft" @click="downloadPdf">Baixar PDF</button>
-      </div>
-    </div>
-
-    <div class="filter-bar report-card">
-      <label>Data inicial<input v-model="filters.from" type="date" /></label>
-      <label>Data final<input v-model="filters.to" type="date" /></label>
-      <label>Tipo
-        <select v-model="activeReport">
-          <option value="portfolio">Carteira</option>
-          <option value="payments">Pagamentos</option>
-          <option value="npl">Risco/NPL</option>
-        </select>
-      </label>
-      <button class="btn btn-blue" @click="loadAll">Aplicar filtros</button>
-    </div>
+    </section>
 
     <div class="kpi-grid">
-      <div class="kpi-card"><div class="kpi-label">Carteira total</div><div class="kpi-value">{{ money(totalPrincipal) }}</div><div class="kpi-foot">Valor desembolsado</div></div>
-      <div class="kpi-card"><div class="kpi-label">Saldo em dívida</div><div class="kpi-value">{{ money(totalBalance) }}</div><div class="kpi-foot">Capital + juros por pagar</div></div>
-      <div class="kpi-card"><div class="kpi-label">Pagamentos</div><div class="kpi-value">{{ money(totalPayments) }}</div><div class="kpi-foot">Confirmados no período</div></div>
-      <div class="kpi-card"><div class="kpi-label">NPL</div><div class="kpi-value">{{ nplRate }}%</div><div class="kpi-foot">Taxa de risco</div></div>
-    </div>
-
-    <div class="report-card">
-      <div class="report-section-title"><span>Dados do relatório</span><span class="badge badge-blue">{{ rows.length }} linhas</span></div>
-      <div v-if="loading" class="text-muted">A carregar...</div>
-      <div v-else-if="!rows.length" class="empty-state"><div class="empty-state-title">Sem dados</div><div class="empty-state-sub">Ajuste os filtros ou confirme se existem dados registados.</div></div>
-      <div v-else class="table-wrap">
-        <table>
-          <thead><tr><th v-for="h in headers" :key="h">{{ h }}</th></tr></thead>
-          <tbody>
-            <tr v-for="(row, i) in rows" :key="i"><td v-for="h in headers" :key="h">{{ row[h] }}</td></tr>
-          </tbody>
-        </table>
+      <div class="kpi good">
+        <div class="label">Clientes</div>
+        <div class="value">{{ counts.clients }}</div>
+        <div class="note">Registados</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Pedidos</div>
+        <div class="value">{{ counts.loans }}</div>
+        <div class="note">Total</div>
+      </div>
+      <div class="kpi warn">
+        <div class="label">Pagamentos</div>
+        <div class="value">{{ counts.payments }}</div>
+        <div class="note">Confirmados</div>
+      </div>
+      <div class="kpi">
+        <div class="label">Notificações</div>
+        <div class="value">{{ counts.notifs }}</div>
+        <div class="note">Enviadas</div>
       </div>
     </div>
-  </section>
+
+    <div class="modern-card">
+      <h2>Exportar relatórios</h2>
+      <p class="muted" style="margin-bottom:16px">Dados reais da sua instituição, exportados directamente da base de dados.</p>
+      <table class="modern-table">
+        <thead><tr><th>Módulo</th><th>Descrição</th><th>Registos</th><th>Exportar</th></tr></thead>
+        <tbody>
+          <tr v-for="r in reports" :key="r.key">
+            <td><strong>{{ r.icon }} {{ r.name }}</strong></td>
+            <td class="muted">{{ r.desc }}</td>
+            <td><span class="status-pill st-approved" v-if="r.count !== null">{{ r.count }}</span><span class="muted" v-else>—</span></td>
+            <td>
+              <div class="action-row">
+                <button class="btn btn-sm btn-primary" :class="{ loading: r.loading }" :disabled="r.loading" @click="exportReport(r, 'csv')">{{ r.loading ? '' : 'CSV' }}</button>
+                <button class="btn btn-sm" @click="exportReport(r, 'pdf')">PDF</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import api from '@/services/api'
-import { currency, exportCsv, exportHtmlPdf } from '@/utils/exporters'
-
-const loading = ref(false)
-const activeReport = ref('portfolio')
-const filters = reactive({ from: '', to: '' })
-const portfolio = ref([])
-const payments = ref([])
-const npl = ref({})
-
-const money = currency
-const totalPrincipal = computed(() => portfolio.value.reduce((s, r) => s + Number(r.total_principal || 0), 0))
-const totalBalance = computed(() => portfolio.value.reduce((s, r) => s + Number(r.total_balance || 0), 0))
-const totalPayments = computed(() => payments.value.reduce((s, r) => s + Number(r.total || 0), 0))
-const nplRate = computed(() => npl.value?.npl_rate || '0.00')
-
-const rows = computed(() => {
-  if (activeReport.value === 'payments') return payments.value.map(r => ({ Método: r.method || '-', Quantidade: r.count || 0, Total: money(r.total) }))
-  if (activeReport.value === 'npl') return [{ 'Carteira total': money(npl.value.total_portfolio), 'Saldo vencido': money(npl.value.overdue_balance), 'NPL %': nplRate.value }]
-  return portfolio.value.map(r => ({ Estado: r.status || '-', Quantidade: r.count || 0, Principal: money(r.total_principal), Saldo: money(r.total_balance) }))
-})
-const headers = computed(() => rows.value[0] ? Object.keys(rows.value[0]) : [])
+import { useToast } from 'vue-toastification'
+const toast = useToast()
+const counts = ref({ clients: 0, loans: 0, payments: 0, notifs: 0 })
+const reports = ref([
+  { key:'clients',  name:'Clientes',     desc:'Base de clientes com KYC e salário',        icon:'👥', count:null, loading:false },
+  { key:'loans',    name:'Pedidos',       desc:'Pedidos e empréstimos com estado e valor',   icon:'📋', count:null, loading:false },
+  { key:'payments', name:'Pagamentos',    desc:'Transacções confirmadas e falhadas',         icon:'💳', count:null, loading:false },
+  { key:'notifications',name:'Notificações', desc:'Logs de envio Email/SMS/WhatsApp',       icon:'🔔', count:null, loading:false },
+])
 
 async function loadAll() {
-  loading.value = true
   try {
-    const params = filters.from && filters.to ? { from: filters.from, to: filters.to } : {}
-    const [p, pay, risk] = await Promise.all([
-      api.get('/reports/portfolio'),
-      api.get('/reports/payments-summary', { params }),
-      api.get('/reports/npl')
+    const [c,l,p,n] = await Promise.allSettled([
+      api.get('/clients', {params:{limit:1}}),
+      api.get('/loans', {params:{limit:1}}),
+      api.get('/payments', {params:{limit:1}}),
+      api.get('/notifications/logs', {params:{limit:1}}),
     ])
-    portfolio.value = p.data.data || []
-    payments.value = pay.data.data || []
-    npl.value = risk.data.data || {}
-  } finally { loading.value = false }
+    if(c.status==='fulfilled') { counts.value.clients=c.value.data.meta?.total||0; reports.value[0].count=counts.value.clients }
+    if(l.status==='fulfilled') { counts.value.loans=l.value.data.meta?.total||0;   reports.value[1].count=counts.value.loans }
+    if(p.status==='fulfilled') { counts.value.payments=p.value.data.meta?.total||0;reports.value[2].count=counts.value.payments }
+    if(n.status==='fulfilled') { counts.value.notifs=n.value.data.meta?.total||0;  reports.value[3].count=counts.value.notifs }
+  } catch(e) {}
 }
-function downloadCsv() { exportCsv(`relatorio-${activeReport.value}.csv`, rows.value) }
-function downloadPdf() {
-  const html = `<h1>MicroCredit SYSTEM — Relatório ${activeReport.value}</h1>
-    <div class="summary"><div class="box"><div class="muted">Carteira</div><strong>${money(totalPrincipal.value)}</strong></div><div class="box"><div class="muted">Pagamentos</div><strong>${money(totalPayments.value)}</strong></div><div class="box"><div class="muted">NPL</div><strong>${nplRate.value}%</strong></div></div>
-    <table><thead><tr>${headers.value.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.value.map(r => `<tr>${headers.value.map(h => `<td>${r[h] ?? ''}</td>`).join('')}</tr>`).join('')}</tbody></table>`
-  exportHtmlPdf('Relatório MicroCredit SYSTEM', html)
+
+async function exportReport(r, fmt) {
+  r.loading = true
+  try {
+    let rows = []
+    if (r.key === 'clients') {
+      const { data } = await api.get('/clients', { params: { limit: 5000 } })
+      rows = (data.data||[]).map(x => ({ Nome: x.User?.full_name||'—', Email: x.User?.email||'—', Telefone: x.User?.phone||'—', KYC: x.kyc_status, Província: x.province||'—', Actividade: x.activity_type||'—' }))
+    } else if (r.key === 'loans') {
+      const { data } = await api.get('/loans', { params: { limit: 5000 } })
+      rows = (data.data||[]).map(x => ({ Ref: x.reference||x.id, Cliente: x.Client?.User?.full_name||'—', Produto: x.CreditProduct?.name||'—', Valor: x.requested_amount, Estado: x.status, Data: x.created_at ? new Date(x.created_at).toLocaleDateString('pt-MZ') : '—' }))
+    } else if (r.key === 'payments') {
+      const { data } = await api.get('/payments', { params: { limit: 5000 } })
+      rows = (data.data||[]).map(x => ({ Ref: x.reference, Valor: x.amount, Método: x.method, Estado: x.status, Data: x.created_at ? new Date(x.created_at).toLocaleDateString('pt-MZ') : '—' }))
+    } else if (r.key === 'notifications') {
+      const { data } = await api.get('/notifications/logs', { params: { limit: 5000 } })
+      rows = (data.data||[]).map(x => ({ Canal: x.channel, Evento: x.event, Destinatário: x.recipient_email||x.recipient_phone||'—', Estado: x.status, Tentativas: x.attempts, Data: x.created_at ? new Date(x.created_at).toLocaleString('pt-MZ') : '—' }))
+    }
+    r.count = rows.length
+    if (fmt === 'csv') downloadCSV(rows, r.name)
+    else printReport(rows, r.name)
+  } catch(e) { toast.error('Erro ao exportar: ' + (e.response?.data?.message || e.message)) }
+  finally { r.loading = false }
 }
+
+function downloadCSV(rows, name) {
+  if (!rows.length) { toast.warning('Sem dados'); return }
+  const cols = Object.keys(rows[0])
+  const csv = cols.map(c => `"${c}"`).join(',') + '\n' + rows.map(r => cols.map(c => `"${(r[c]??'').toString().replace(/"/g,'""')}"`).join(',')).join('\n')
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8;' }))
+  a.download = `${name.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.csv`
+  a.click()
+  toast.success(`${rows.length} linhas exportadas`)
+}
+
+function printReport(rows, name) {
+  if (!rows.length) { toast.warning('Sem dados'); return }
+  const cols = Object.keys(rows[0])
+  const w = window.open('', '_blank')
+  w.document.write(`<html><head><title>${name}</title><style>body{font-family:Arial,sans-serif;font-size:11px;padding:20px}table{width:100%;border-collapse:collapse}th{background:#185FA5;color:#fff;padding:5px 7px}td{padding:5px 7px;border-bottom:1px solid #e2e8f0}tr:nth-child(even) td{background:#f8fafc}</style></head><body>`)
+  w.document.write(`<h2>${name} — ${new Date().toLocaleDateString('pt-MZ')}</h2>`)
+  w.document.write('<table><thead><tr>'+cols.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>')
+  rows.forEach(r => { w.document.write('<tr>'+cols.map(c=>`<td>${r[c]??'—'}</td>`).join('')+'</tr>') })
+  w.document.write('</tbody></table></body></html>')
+  w.document.close(); w.print()
+}
+
 onMounted(loadAll)
 </script>
