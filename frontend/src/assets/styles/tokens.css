@@ -1,96 +1,85 @@
-/* ============================================================
-   SIGEM-MICROCREDITO — tokens.css
-   Tema visual: OTECH ERP Corporate
-   Aplicar em: frontend/src/assets/styles/tokens.css
-   ============================================================ */
-
-/* ─── Google Fonts: Segoe UI fallback (já no Windows) ──────── */
+/* ================================================================
+   SIGEM-MICROCREDITO — Tema OTECH ERP Corporate
+   ================================================================ */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* ── Cores Primárias OTECH ERP ──────────────────────────── */
-  --mk-dark:        #0A2342;   /* Navy escuro — sidebar, headers */
-  --mk-blue:        #007BFF;   /* Azul elétrico — acção principal */
-  --mk-cyan:        #00AACC;   /* Ciano — gradientes, destaques */
-  --mk-green:       #00A843;   /* Verde esmeralda — sucesso, aprovado */
-  --mk-orange:      #FF9800;   /* Laranja — aviso, pendente */
-  --mk-red:         #D32F2F;   /* Vermelho — erro, recusado */
-  --mk-purple:      #7C3AED;   /* Roxo — destaque secundário */
+  /* ── Paleta ERP ── */
+  --erp-navy:    #0A2342;
+  --erp-blue:    #007BFF;
+  --erp-cyan:    #00AACC;
+  --erp-green:   #00A843;
+  --erp-orange:  #FF9800;
+  --erp-red:     #D32F2F;
+  --erp-purple:  #7C3AED;
+  --erp-bg:      #F0F4F8;
+  --erp-surface: #FFFFFF;
 
-  /* ── Gradientes ─────────────────────────────────────────── */
-  --mk-grad-primary:  linear-gradient(135deg, #007BFF 0%, #00AACC 100%);
-  --mk-grad-success:  linear-gradient(135deg, #00A843 0%, #00CC66 100%);
-  --mk-grad-danger:   linear-gradient(135deg, #D32F2F 0%, #FF5252 100%);
-  --mk-grad-dark:     linear-gradient(135deg, #0A2342 0%, #1A3A5C 100%);
-  --mk-grad-orange:   linear-gradient(135deg, #FF9800 0%, #FFB74D 100%);
+  /* ── Gradientes ERP ── */
+  --grad-primary: linear-gradient(135deg, #007BFF 0%, #00AACC 100%);
+  --grad-danger:  linear-gradient(135deg, #D32F2F 0%, #FF5252 100%);
+  --grad-success: linear-gradient(135deg, #00A843 0%, #00CC66 100%);
+  --grad-navy:    linear-gradient(135deg, #0A2342 0%, #1A3A5C 100%);
+  --grad-hero:    linear-gradient(135deg, #0A2342 0%, #1A3A5C 45%, #0A2342 100%);
 
-  /* ── Fundos ─────────────────────────────────────────────── */
-  --mk-bg:           #F0F4F8;  /* Fundo da página */
-  --mk-surface:      #FFFFFF;  /* Cards, modais, painéis */
-  --mk-surface-2:    #F8FAFC;  /* Fundo subtil (thead, alternado) */
-  --mk-sidebar-bg:   #0A2342;  /* Sidebar */
-  --mk-topbar-bg:    #0A2342;  /* Topbar */
+  /* ── Sombras ERP ── */
+  --mk-shadow-xs: 0 1px 4px rgba(10,35,66,.06);
+  --mk-shadow-sm: 0 2px 8px rgba(10,35,66,.08);
+  --mk-shadow:    0 4px 16px rgba(10,35,66,.10);
+  --mk-shadow-md: 0 8px 28px rgba(10,35,66,.12);
+  --mk-shadow-lg: 0 16px 48px rgba(10,35,66,.18);
 
-  /* ── Bordas ─────────────────────────────────────────────── */
-  --mk-border:       rgba(10, 35, 66, 0.10);
-  --mk-border-dark:  rgba(10, 35, 66, 0.20);
-  --mk-border-blue:  rgba(0, 123, 255, 0.35);
+  /* ── Aliases SIGEM → ERP ── */
+  --mk-primary:        var(--erp-blue);
+  --mk-primary-hover:  #0066DD;
+  --mk-primary-light:  rgba(0,123,255,.10);
+  --mk-primary-mid:    rgba(0,123,255,.20);
+  --mk-danger:         var(--erp-red);
+  --mk-danger-hover:   #B71C1C;
+  --mk-danger-light:   rgba(211,47,47,.10);
+  --mk-success:        var(--erp-green);
+  --mk-warning:        var(--erp-orange);
+  --mk-info:           var(--erp-blue);
 
-  /* ── Texto ──────────────────────────────────────────────── */
-  --mk-text:         #0A2342;  /* Texto principal */
-  --mk-text-2:       #334E68;  /* Texto secundário */
-  --mk-muted:        #5A7A9A;  /* Texto desabilitado/meta */
-  --mk-text-light:   #FFFFFF;  /* Texto sobre fundos escuros */
-  --mk-text-sidebar: rgba(255,255,255,0.60);
+  --mk-success-bg:     rgba(0,168,67,.10);   --mk-success-border: rgba(0,168,67,.25);
+  --mk-warning-bg:     rgba(255,152,0,.10);  --mk-warning-border: rgba(255,152,0,.25);
+  --mk-danger-bg:      rgba(211,47,47,.10);  --mk-danger-border:  rgba(211,47,47,.25);
+  --mk-info-bg:        rgba(0,123,255,.10);  --mk-info-border:    rgba(0,123,255,.25);
 
-  /* ── Sombras ─────────────────────────────────────────────── */
-  --mk-shadow-sm:   0 1px 4px rgba(10,35,66,0.08);
-  --mk-shadow:      0 4px 16px rgba(10,35,66,0.10);
-  --mk-shadow-md:   0 8px 28px rgba(10,35,66,0.12);
-  --mk-shadow-lg:   0 16px 48px rgba(10,35,66,0.18);
-  --mk-shadow-blue: 0 4px 20px rgba(0,123,255,0.25);
+  /* ── Superfícies ── */
+  --mk-surface:   #FFFFFF;
+  --mk-surface-2: #F8FAFC;
+  --mk-surface-3: #F0F4F8;
+  --mk-border:    rgba(10,35,66,.09);
+  --mk-border-2:  rgba(10,35,66,.18);
+  --mk-text:      #0A2342;
+  --mk-text-1:    #0A2342;
+  --mk-text-2:    #334E68;
+  --mk-text-3:    #5A7A9A;
+  --mk-font:      'Inter', 'Segoe UI', system-ui, sans-serif;
+  --mk-font-mono: 'JetBrains Mono', monospace;
 
-  /* ── Raios ───────────────────────────────────────────────── */
-  --mk-radius-sm:   6px;
-  --mk-radius:      10px;
-  --mk-radius-md:   12px;
-  --mk-radius-lg:   16px;
-  --mk-radius-xl:   20px;
-  --mk-radius-full: 9999px;
+  /* ── Focus ── */
+  --mk-focus-blue: 0 0 0 3px rgba(0,123,255,.25);
+  --mk-focus-red:  0 0 0 3px rgba(211,47,47,.25);
 
-  /* ── Tipografia ──────────────────────────────────────────── */
-  --mk-font:        'Inter', 'Segoe UI', system-ui, sans-serif;
-  --mk-text-xs:     11px;
-  --mk-text-sm:     12px;
-  --mk-text-base:   13.5px;
-  --mk-text-md:     15px;
-  --mk-text-lg:     18px;
-  --mk-text-xl:     22px;
-  --mk-text-2xl:    28px;
+  /* ── Raios ── */
+  --mk-r-sm:   6px; --mk-r:   10px; --mk-r-md: 12px;
+  --mk-r-lg:   16px;--mk-r-xl:20px; --mk-r-full:9999px;
 
-  /* ── Layout ──────────────────────────────────────────────── */
-  --mk-sidebar-w:       220px;
-  --mk-topbar-h:        54px;
-  --mk-content-padding: 24px;
+  /* ── Espaçamento ── */
+  --mk-sp-1:4px; --mk-sp-2:8px;  --mk-sp-3:12px; --mk-sp-4:16px;
+  --mk-sp-5:20px;--mk-sp-6:24px; --mk-sp-8:32px;
 
-  /* ── Transições ─────────────────────────────────────────── */
-  --mk-transition:      all 0.18s ease;
-  --mk-transition-slow: all 0.30s ease;
+  /* ── Tipo ── */
+  --mk-text-xs:11px; --mk-text-sm:12px; --mk-text-base:13.5px;
+  --mk-text-md:15px; --mk-text-lg:18px; --mk-text-xl:22px;
+  --mk-text-2xl:28px;
+  --mk-w-normal:400; --mk-w-medium:500; --mk-w-semi:600; --mk-w-bold:700;
 
-  /* ── Opacidade sidebar items ────────────────────────────── */
-  --mk-sidebar-item-hover: rgba(255,255,255,0.06);
-  --mk-sidebar-item-active: rgba(0,123,255,0.18);
-  --mk-sidebar-active-border: #007BFF;
+  /* ── Layout ── */
+  --mk-topbar-h:  54px;
+  --mk-sidebar-w: 220px;
+  --mk-content-max: 1280px;
+  --mk-z-dropdown:100; --mk-z-sticky:200; --mk-z-modal:400; --mk-z-toast:600;
 }
-
-/* ── Dark Mode (opcional — descomente para activar) ─────────
-[data-theme="dark"] {
-  --mk-bg:       #0F172A;
-  --mk-surface:  #1E293B;
-  --mk-surface-2:#162032;
-  --mk-border:   rgba(255,255,255,0.08);
-  --mk-text:     #E2E8F0;
-  --mk-text-2:   #94A3B8;
-  --mk-muted:    #64748B;
-}
-─────────────────────────────────────────────────────────── */

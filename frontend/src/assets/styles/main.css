@@ -1,8 +1,61 @@
+/* ================================================================
+   SIGEM-MICROCREDITO — Tema OTECH ERP Corporate v14.3
+   ================================================================ */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import './tokens.css';
-@import './base.css';
 @import './layout.css';
 @import './components.css';
-@import './buttons.css';
 @import './forms.css';
+@import './buttons.css';
 @import './modals.css';
-@import './responsive-admin.css';
+
+/* ── Layout compat ── */
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.toolbar-filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.toolbar-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.table-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+.mini-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;align-items:center;gap:8px;background:var(--mk-surface-2);border:1px solid var(--mk-border);border-radius:var(--mk-r);padding:10px}
+.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}
+.doc-upload-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:10px 0}
+.upload-card{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:70px;border:1.5px dashed var(--mk-border-2);border-radius:var(--mk-r);padding:12px;background:var(--mk-surface-2);cursor:pointer;transition:.15s}
+.upload-card:hover{border-color:var(--erp-blue);background:rgba(0,123,255,.04)}
+.upload-card.ok{border-style:solid;border-color:rgba(0,168,67,.3);background:rgba(0,168,67,.04)}
+.upload-card strong{display:block;font-size:12px;font-weight:600;color:var(--mk-text)}
+.upload-card span{display:block;font-size:11px;color:var(--mk-text-3);margin-top:3px}
+@media(max-width:640px){.form-grid,.mini-row,.doc-upload-grid{grid-template-columns:1fr}}
+
+/* ── Login Auth page ── */
+.auth-page{min-height:100vh;display:grid;grid-template-columns:400px 1fr}
+.auth-left{
+  padding:44px 36px;display:flex;flex-direction:column;
+  background:var(--grad-navy);color:rgba(255,255,255,.9);
+  position:relative;overflow:hidden;
+}
+.auth-left::after{content:'';position:absolute;right:-60px;top:-60px;width:240px;height:240px;border-radius:50%;background:rgba(0,123,255,.15);filter:blur(50px);pointer-events:none}
+.auth-brand{font-size:22px;font-weight:800;margin-bottom:5px;letter-spacing:.3px;text-transform:uppercase;position:relative;z-index:1}
+.auth-brand-sub{font-size:12px;opacity:.55;margin-bottom:24px;position:relative;z-index:1;letter-spacing:.5px;text-transform:uppercase}
+.auth-logo{margin-bottom:20px;position:relative;z-index:1}
+.auth-logo-default{width:52px;height:52px;border-radius:14px;background:var(--grad-primary);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,123,255,.4)}
+.auth-policy{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:10px 12px;font-size:11px;margin-bottom:20px;position:relative;z-index:1;line-height:1.6;display:flex;gap:8px}
+.auth-features{display:flex;flex-direction:column;gap:11px;position:relative;z-index:1;flex:1}
+.auth-feature{display:flex;align-items:center;gap:10px;font-size:12px}
+.auth-feature-icon{width:18px;height:18px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.auth-feature-icon svg{width:10px;height:10px}
+.auth-powered{font-size:10px;opacity:.3;margin-top:28px;position:relative;z-index:1}
+.auth-right{background:var(--mk-surface-3);display:flex;align-items:center;justify-content:center;padding:32px 24px}
+.auth-card{background:#fff;border:1px solid var(--mk-border);border-radius:var(--mk-r-lg);padding:34px 30px 26px;width:100%;max-width:420px;box-shadow:var(--mk-shadow-md)}
+.auth-card-header{margin-bottom:22px}
+.auth-card-header h2{font-size:20px;font-weight:700;margin-bottom:4px;color:var(--erp-navy)}
+.auth-card-header p{font-size:13px;color:var(--mk-text-3)}
+.auth-divider{position:relative;text-align:center;margin:18px 0;color:var(--mk-text-3);font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+.auth-divider::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:var(--mk-border)}
+.auth-divider span{position:relative;background:#fff;padding:0 10px}
+.demo-grid{display:flex;flex-direction:column;gap:7px;margin-bottom:18px}
+.demo-btn{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:var(--mk-r);border:1px solid var(--mk-border);background:#fff;cursor:pointer;transition:.12s;text-align:left;font-family:var(--mk-font)}
+.demo-btn:hover{border-color:rgba(0,123,255,.3);background:rgba(0,123,255,.04)}
+.demo-icon{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.demo-label{font-size:12.5px;font-weight:600;color:var(--erp-navy)}
+.demo-email{font-size:10px;color:var(--mk-text-3)}
+.auth-footer-link{font-size:12px;text-align:center;color:var(--mk-text-3)}
+.auth-footer-link a{color:var(--erp-blue);font-weight:600}
+@media(max-width:768px){.auth-page{grid-template-columns:1fr}.auth-left{display:none}}
