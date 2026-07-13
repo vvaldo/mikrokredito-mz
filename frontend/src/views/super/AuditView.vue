@@ -1,184 +1,77 @@
 <template>
-  <div class="modern-page">
-    <section class="modern-hero">
-      <h1>Auditoria</h1>
-      <p>Registo de todas as acções críticas — aprovações, alterações, acessos e operações do sistema.</p>
-      <div class="hero-actions">
-        <button class="btn btn-primary" @click="load">Actualizar</button>
-        <button class="btn" @click="exportCSV">Exportar CSV</button>
-        <button class="btn" @click="exportPDF">Imprimir / PDF</button>
-      </div>
-    </section>
-
-    <!-- Filters -->
-    <div class="modern-card" style="padding:14px;margin-bottom:14px">
-      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input class="input search" v-model="q" placeholder="Pesquisar utilizador ou acção…" style="flex:1;min-width:180px">
-        <select class="input" v-model="filterRole" style="width:150px">
-          <option value="">Todos os roles</option>
-          <option value="super_admin">Super Admin</option>
-          <option value="inst_admin">Admin Inst.</option>
-          <option value="inst_agent">Agente</option>
-          <option value="client">Cliente</option>
-          <option value="system">Sistema</option>
-        </select>
-        <select class="input" v-model="filterEntity" style="width:140px">
-          <option value="">Todas entidades</option>
-          <option value="Loan">Empréstimo</option>
-          <option value="Client">Cliente</option>
-          <option value="Payment">Pagamento</option>
-          <option value="Institution">Instituição</option>
-          <option value="Product">Produto</option>
-        </select>
-        <button class="btn" @click="load" :class="{ loading: loading }">{{ loading ? '' : 'Aplicar' }}</button>
-      </div>
+  <section class="audit-page">
+    <div class="audit-hero">
+      <div><h1>Auditoria</h1><p>Rastreio de eventos, utilizadores, entidades, IP e valores alterados.</p></div>
+      <div class="export-actions"><button class="btn btn-blue" @click="loadAudit">Actualizar</button><button class="btn" @click="downloadCsv">Exportar CSV/Excel</button><button class="btn btn-red-soft" @click="downloadPdf">Baixar PDF</button></div>
     </div>
 
-    <!-- KPIs -->
-    <div class="kpi-grid">
-      <div class="kpi good">
-        <div class="label">Total de eventos</div>
-        <div class="value">{{ rows.length }}</div>
-        <div class="note">Carregados</div>
-      </div>
-      <div class="kpi">
-        <div class="label">Aprovações</div>
-        <div class="value">{{ rows.filter(r => r.action?.includes('approv') || r.action?.includes('aprovado')).length }}</div>
-        <div class="note">Este período</div>
-      </div>
-      <div class="kpi warn">
-        <div class="label">Alterações</div>
-        <div class="value">{{ rows.filter(r => r.action?.includes('updat') || r.action?.includes('edit')).length }}</div>
-        <div class="note">Dados editados</div>
-      </div>
-      <div class="kpi danger">
-        <div class="label">Utilizadores</div>
-        <div class="value">{{ new Set(rows.map(r => r.user_id)).size }}</div>
-        <div class="note">Distintos activos</div>
-      </div>
+    <div class="filter-bar audit-card">
+      <label>Acção<input v-model="filters.action" placeholder="login, update, approve..." /></label>
+      <label>Entidade<input v-model="filters.entity" placeholder="users, loans..." /></label>
+      <label>De<input v-model="filters.from" type="date" /></label>
+      <label>Até<input v-model="filters.to" type="date" /></label>
+      <button class="btn btn-blue" @click="loadAudit">Filtrar</button>
     </div>
 
-    <div class="modern-card" id="audit-print-area">
-      <div class="table-head">
-        <div><h2>Registo de auditoria</h2><p class="muted">{{ filtered.length }} eventos encontrados</p></div>
-      </div>
-      <div v-if="loading" style="padding:32px;text-align:center;color:var(--mk-text-2)">A carregar…</div>
-      <div v-else-if="filtered.length === 0" class="empty-state">Nenhum evento encontrado.</div>
-      <table v-else class="modern-table">
-        <thead>
-          <tr>
-            <th>Utilizador</th>
-            <th>Role</th>
-            <th>Acção</th>
-            <th>Entidade</th>
-            <th>Data/Hora</th>
-            <th>IP</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="r in filtered" :key="r.id">
-            <td>
-              <strong>{{ r.user_name || '—' }}</strong>
-              <br><span class="muted">{{ r.user_id?.slice(0, 8) }}…</span>
-            </td>
-            <td>
-              <span class="status-pill" :class="roleClass(r.user_role)">{{ r.user_role || '—' }}</span>
-            </td>
-            <td style="max-width:280px;word-break:break-word">{{ r.action || r.description || '—' }}</td>
-            <td><span class="status-pill st-submitted">{{ r.entity || '—' }}</span></td>
-            <td class="muted" style="white-space:nowrap">{{ fmt(r.created_at) }}</td>
-            <td class="muted">{{ r.ip_address || '—' }}</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <!-- Pagination -->
-      <div v-if="meta.total > meta.limit" style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;font-size:12px;color:var(--mk-text-2)">
-        <span>{{ meta.total }} total · página {{ meta.page }} de {{ Math.ceil(meta.total/meta.limit) }}</span>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-sm" :disabled="meta.page <= 1" @click="changePage(-1)">‹ Anterior</button>
-          <button class="btn btn-sm" :disabled="meta.page >= Math.ceil(meta.total/meta.limit)" @click="changePage(1)">Próxima ›</button>
-        </div>
+    <div class="audit-card">
+      <div class="audit-section-title"><span>Eventos registados</span><span class="badge badge-blue">{{ meta.total || rows.length }} registos</span></div>
+      <div v-if="loading" class="text-muted">A carregar...</div>
+      <div v-else-if="!rows.length" class="empty-state"><div class="empty-state-title">Sem auditoria visível</div><div class="empty-state-sub">Confirme se o backend está a gravar audit_logs e se o perfil tem permissão.</div></div>
+      <div v-else class="table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Utilizador</th><th>Perfil</th><th>Acção</th><th>Entidade</th><th>IP</th><th>Antes</th><th>Depois</th></tr></thead>
+          <tbody>
+            <tr v-for="row in rows" :key="row.id">
+              <td class="td-nowrap">{{ formatDate(row.created_at || row.createdAt) }}</td>
+              <td>{{ row.user_name || row.actor_name || row.user_id || '-' }}</td>
+              <td>{{ row.user_role || row.role || '-' }}</td>
+              <td><span class="badge badge-blue">{{ row.action || '-' }}</span></td>
+              <td>{{ row.entity || row.entity_type || '-' }}</td>
+              <td class="td-nowrap">{{ row.ip_address || row.ip || '-' }}</td>
+              <td><pre class="audit-json">{{ pretty(row.old_values || row.before || row.previous) }}</pre></td>
+              <td><pre class="audit-json">{{ pretty(row.new_values || row.after || row.current) }}</pre></td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
-  </div>
+  </section>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import api from '@/services/api'
-import { useToast } from 'vue-toastification'
+import { exportCsv, exportHtmlPdf } from '@/utils/exporters'
 
-const toast = useToast()
 const loading = ref(false)
-const rows    = ref([])
-const q       = ref('')
-const filterRole   = ref('')
-const filterEntity = ref('')
-const meta = ref({ total: 0, page: 1, limit: 50 })
+const rows = ref([])
+const meta = ref({})
+const filters = reactive({ action: '', entity: '', from: '', to: '' })
 
-const filtered = computed(() => {
-  let data = rows.value
-  if (q.value) {
-    const s = q.value.toLowerCase()
-    data = data.filter(r =>
-      (r.user_name || '').toLowerCase().includes(s) ||
-      (r.action || r.description || '').toLowerCase().includes(s)
-    )
-  }
-  if (filterRole.value) data = data.filter(r => r.user_role === filterRole.value)
-  if (filterEntity.value) data = data.filter(r => r.entity === filterEntity.value)
-  return data
-})
-
-async function load() {
+function formatDate(value) { return value ? new Date(value).toLocaleString('pt-MZ') : '-' }
+function pretty(value) {
+  if (!value) return '-'
+  if (typeof value === 'string') return value
+  try { return JSON.stringify(value, null, 2) } catch { return String(value) }
+}
+function csvRows() {
+  return rows.value.map(r => ({ Data: formatDate(r.created_at || r.createdAt), Utilizador: r.user_name || r.actor_name || r.user_id || '-', Perfil: r.user_role || r.role || '-', Accao: r.action || '-', Entidade: r.entity || r.entity_type || '-', IP: r.ip_address || r.ip || '-', Antes: pretty(r.old_values || r.before || r.previous), Depois: pretty(r.new_values || r.after || r.current) }))
+}
+async function loadAudit() {
   loading.value = true
   try {
-    const { data } = await api.get('/audit', {
-      params: { page: meta.value.page, limit: meta.value.limit }
-    })
+    const params = Object.fromEntries(Object.entries(filters).filter(([,v]) => v))
+    const { data } = await api.get('/audit', { params })
     rows.value = data.data || []
-    meta.value = { ...meta.value, ...(data.meta || {}) }
-  } catch (e) {
-    toast.error('Erro ao carregar auditoria')
-    rows.value = []
+    meta.value = data.meta || {}
   } finally { loading.value = false }
 }
-
-function changePage(delta) {
-  meta.value.page = Math.max(1, meta.value.page + delta)
-  load()
+function downloadCsv() { exportCsv('auditoria.csv', csvRows()) }
+function downloadPdf() {
+  const data = csvRows()
+  const headers = data[0] ? Object.keys(data[0]) : []
+  const html = `<h1>MicroCredit SYSTEM — Auditoria</h1><table><thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${data.map(r => `<tr>${headers.map(h => `<td>${String(r[h] ?? '').slice(0, 500)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+  exportHtmlPdf('Auditoria MicroCredit SYSTEM', html)
 }
-
-function exportCSV() {
-  const cols = ['user_name','user_role','action','entity','ip_address','created_at']
-  const header = 'Utilizador,Role,Acção,Entidade,IP,Data'
-  const csvRows = filtered.value.map(r =>
-    cols.map(c => `"${(r[c] || '').toString().replace(/"/g, '""')}"`).join(',')
-  )
-  const blob = new Blob([header + '\n' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `auditoria_${new Date().toISOString().slice(0,10)}.csv`
-  a.click()
-}
-
-function exportPDF() {
-  const area = document.getElementById('audit-print-area')
-  if (!area) return window.print()
-  const w = window.open('', '_blank')
-  w.document.write(`<html><head><title>Auditoria — MikroKrédito MZ</title>
-    <style>body{font-family:sans-serif;font-size:12px;padding:20px}table{width:100%;border-collapse:collapse}
-    th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}th{background:#f1f5f9;font-weight:600}</style></head><body>`)
-  w.document.write(`<h2>Auditoria — ${new Date().toLocaleDateString('pt-MZ')}</h2>`)
-  w.document.write(area.innerHTML)
-  w.document.write('</body></html>')
-  w.document.close()
-  w.print()
-}
-
-const fmt = v => v ? new Date(v).toLocaleString('pt-MZ') : '—'
-const roleClass = r => ({ super_admin:'st-approved', inst_admin:'st-disbursed', inst_agent:'st-submitted', client:'st-pending', system:'st-queued' }[r] || 'st-pending')
-
-onMounted(load)
+onMounted(loadAudit)
 </script>
