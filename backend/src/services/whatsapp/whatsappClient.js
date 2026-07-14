@@ -16,26 +16,40 @@ let qrDataUrl = null;
 let lastError = null;
 let readyInfo = null; // { number, pushname }
 
+// Alguns sistemas (ex.: Ubuntu) têm um /usr/bin/chromium-browser que é só um script
+// de aviso ("requires the chromium snap"), não um binário funcional. Por isso nunca
+// confiamos apenas na existência do ficheiro — testamos se ele corre mesmo.
+function isWorkingBinary(p) {
+  if (!p) return false;
+  try {
+    require('child_process').execSync(`"${p}" --version`, { stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 });
+    return true;
+  } catch (e) { return false; }
+}
+
 function resolveChromePath() {
-  if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
+  const candidates = [];
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) candidates.push(process.env.PUPPETEER_EXECUTABLE_PATH);
+  candidates.push('/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome');
 
-  const fixedCandidates = ['/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome'];
-  const fixed = fixedCandidates.find(p => fs.existsSync(p));
-  if (fixed) return fixed;
+  for (const p of candidates) {
+    if (fs.existsSync(p) && isWorkingBinary(p)) return p;
+  }
 
-  // Nix (Nixpacks) instala o Chromium num caminho de store com hash variável, não fixo —
-  // resolve-se pelo PATH em vez de um caminho hardcoded.
+  // Tenta resolver pelo PATH (útil em Nix/Nixpacks, onde o caminho tem hash variável).
   try {
     const { execSync } = require('child_process');
     for (const bin of ['chromium', 'chromium-browser', 'google-chrome']) {
       try {
         const resolved = execSync(`which ${bin}`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
-        if (resolved) return resolved;
+        if (isWorkingBinary(resolved)) return resolved;
       } catch (e) { /* não encontrado, tenta o próximo */ }
     }
   } catch (e) {}
 
-  return undefined; // deixa o Puppeteer usar o Chromium empacotado, se existir
+  // Nada de sistema funcional encontrado — deixa o Puppeteer usar o Chromium que
+  // descarregou para si próprio no `npm install` (funciona em ambientes glibc/Ubuntu).
+  return undefined;
 }
 
 function normalizeToChatId(phone) {
