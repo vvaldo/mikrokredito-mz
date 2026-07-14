@@ -17,6 +17,7 @@ const DEFAULTS = {
   leftSub:      'Sistema Integrado de Gestão de Microcrédito',
   poweredBy:    'Powered by: OTECH - Open Technology (www.otech.co.mz)',
   hideDemoCredentials: false,
+  sessionTimeoutMinutes: 60,
   creditPolicy: 'Condição de desembolso: Valores abaixo de 50.000 MZN podem ser desembolsados em menos de 24 horas, desde que todos os documentos obrigatórios estejam validados. De 51.000 a 100.000 MZN, o processo fica condicionado à formalização documental em cartório/escritório.',
   features: [
     'Multi-tenant — isolamento por instituição',

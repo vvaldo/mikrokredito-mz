@@ -60,6 +60,16 @@
           </div>
         </div>
 
+        <!-- Security -->
+        <div class="card mb-4">
+          <div class="card-title">🔒 Segurança</div>
+          <div class="form-group" style="max-width:260px">
+            <label class="form-label">Terminar sessão por inactividade após (minutos)</label>
+            <input class="form-input" type="number" min="1" v-model.number="form.sessionTimeoutMinutes" placeholder="60" />
+            <p class="form-hint">Aplica-se a todos os utilizadores. Ao expirar, a sessão termina automaticamente.</p>
+          </div>
+        </div>
+
         <!-- UPLOAD Logo + Favicon -->
         <div class="card mb-4">
           <div class="card-title">🖼️ Logotipo e Favicon — Upload de ficheiro</div>
@@ -201,7 +211,7 @@ const form = reactive({
   name:'',tagline:'',logoUrl:'',faviconUrl:'',
   primaryColor:'#1a6ff5',dangerColor:'#dc2626',
   welcomeTitle:'',welcomeSub:'',leftTitle:'',leftSub:'',
-  poweredBy:'',creditPolicy:'',features:[],hideDemoCredentials:false,
+  poweredBy:'',creditPolicy:'',features:[],hideDemoCredentials:false,sessionTimeoutMinutes:60,
 })
 
 function load() {
@@ -212,6 +222,7 @@ function load() {
     welcomeSub:brand.welcomeSub, leftTitle:brand.leftTitle, leftSub:brand.leftSub,
     poweredBy:brand.poweredBy, creditPolicy:brand.creditPolicy,
     features:[...(brand.features||[])], hideDemoCredentials:brand.hideDemoCredentials,
+    sessionTimeoutMinutes:brand.sessionTimeoutMinutes,
   })
 }
 

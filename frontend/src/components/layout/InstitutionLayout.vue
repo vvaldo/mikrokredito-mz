@@ -40,6 +40,7 @@ const menuItems = computed(() => [
   { tab:'applications', label:'Pedidos',           icon:I.file,  to:'/institution/applications' },
   { tab:'loans',        label:'Empréstimos',       icon:I.file,  to:'/institution/loans' },
   { tab:'simulator',    label:'Simulador',         icon:I.calc,  to:'/institution/simulator' },
+  { tab:'compare',      label:'Comparar / Simular',icon:I.chart, to:'/institution/compare' },
   { tab:'payments',     label:'Pagamentos',        icon:I.card,  to:'/institution/payments' },
   { sep:true, _key:'s2' },
   { tab:'products',     label:'Produtos',          icon:I.tag,   to:'/institution/products' },

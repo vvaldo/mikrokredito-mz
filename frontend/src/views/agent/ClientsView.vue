@@ -46,6 +46,6 @@ const auth=useAuthStore(), loading=ref(true), clients=ref([]), q=ref(''), select
 const filtered=computed(()=>q.value?clients.value.filter(c=>(c.User?.full_name+c.User?.email+c.User?.phone||'').toLowerCase().includes(q.value.toLowerCase())):clients.value)
 const initials=n=>n?.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()||'?'
 const fmt=v=>v?new Date(v).toLocaleDateString('pt-MZ'):'—'
-async function load(){loading.value=true;try{const{data}=await api.get('/clients',{params:{limit:200}});clients.value=data.data||[]}finally{loading.value=false}}
+async function load(){loading.value=true;try{const{data}=await api.get('/clients',{params:{limit:100000}});clients.value=data.data||[]}finally{loading.value=false}}
 onMounted(load)
 </script>

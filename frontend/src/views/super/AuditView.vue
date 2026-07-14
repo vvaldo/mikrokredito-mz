@@ -60,7 +60,7 @@ function csvRows() {
 async function loadAudit() {
   loading.value = true
   try {
-    const params = Object.fromEntries(Object.entries(filters).filter(([,v]) => v))
+    const params = { limit: 100000, ...Object.fromEntries(Object.entries(filters).filter(([,v]) => v)) }
     const { data } = await api.get('/audit', { params })
     rows.value = data.data || []
     meta.value = data.meta || {}

@@ -289,7 +289,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
-import api from '@/services/api'
+import api, { uploadDocument } from '@/services/api'
 
 const router = useRouter()
 const route  = useRoute()
@@ -351,11 +351,8 @@ async function submit() {
       // Upload pending docs
       for (const [type, file] of Object.entries(uploadedDocs.value)) {
         if (!file?.raw) continue
-        const fd = new FormData()
-        fd.append('file', file.raw)
-        fd.append('client_id', route.params.id)
-        fd.append('type', type)
-        await api.post('/documents', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).catch(() => {})
+        try { await uploadDocument(file.raw, type, route.params.id) }
+        catch (e) { toast.error(`Erro ao carregar documento (${type}): ${e.response?.data?.message || 'falha no envio'}`) }
       }
       toast.success('✅ Cliente actualizado com sucesso')
     } else {
@@ -365,11 +362,8 @@ async function submit() {
       if (clientId) {
         for (const [type, file] of Object.entries(uploadedDocs.value)) {
           if (!file?.raw) continue
-          const fd = new FormData()
-          fd.append('file', file.raw)
-          fd.append('client_id', clientId)
-          fd.append('type', type)
-          await api.post('/documents', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).catch(() => {})
+          try { await uploadDocument(file.raw, type, clientId) }
+          catch (e) { toast.error(`Erro ao carregar documento (${type}): ${e.response?.data?.message || 'falha no envio'}`) }
         }
       }
       toast.success('✅ Cliente cadastrado com sucesso!')

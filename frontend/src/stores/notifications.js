@@ -11,9 +11,35 @@ export const useNotificationStore = defineStore('notifications', {
     logsMeta: { total: 0, page: 1, limit: 50 },
     loading: false,
     queueStatus: null,
+    unreadCount: 0,
+    recent: [],
   }),
 
   actions: {
+    // ── Sino de notificações (topbar)
+    async fetchUnreadCount() {
+      try {
+        const { data } = await api.get('/notifications/my/unread-count')
+        this.unreadCount = data.data?.count || 0
+      } catch (e) {}
+    },
+
+    async fetchRecent(limit = 8) {
+      try {
+        const { data } = await api.get('/notifications/my', { params: { limit } })
+        this.recent = data.data || []
+        this.unreadCount = data.unread ?? this.unreadCount
+      } catch (e) {}
+    },
+
+    async markRead(id) {
+      try {
+        await api.post(`/notifications/${id}/read`)
+        const n = this.recent.find(x => x.id === id)
+        if (n && !n.read_at) { n.read_at = new Date().toISOString(); this.unreadCount = Math.max(0, this.unreadCount - 1) }
+      } catch (e) {}
+    },
+
     // ── Templates
     async fetchTemplates(params = {}) {
       this.loading = true

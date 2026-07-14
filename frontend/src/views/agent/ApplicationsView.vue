@@ -40,6 +40,6 @@ const mzn=v=>Number(v||0).toLocaleString('pt-MZ',{style:'currency',currency:'MZN
 const fmt=v=>v?new Date(v).toLocaleDateString('pt-MZ'):'—'
 const badgeCls=s=>({approved:'badge-approved',disbursed:'badge-disbursed',submitted:'badge-submitted',under_review:'badge-review',rejected:'badge-rejected',draft:'badge-neutral'}[s]||'badge-neutral')
 const statusLabel=s=>({submitted:'Submetido',under_review:'Em análise',approved:'Aprovado',rejected:'Rejeitado',disbursed:'Desembolsado',draft:'Rascunho'}[s]||s)
-async function load(){loading.value=true;try{const{data}=await api.get('/loans',{params:{limit:200}});apps.value=data.data||[]}finally{loading.value=false}}
+async function load(){loading.value=true;try{const{data}=await api.get('/loans',{params:{limit:100000}});apps.value=data.data||[]}finally{loading.value=false}}
 onMounted(load)
 </script>

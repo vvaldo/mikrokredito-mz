@@ -216,7 +216,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import { useBrandingStore } from '@/stores/branding'
-import api from '@/services/api'
+import api, { uploadDocument } from '@/services/api'
 
 const route = useRoute(), router = useRouter(), toast = useToast()
 const brand = useBrandingStore()
@@ -304,15 +304,11 @@ async function saveClient() {
 async function uploadDocs(e) {
   const files = Array.from(e.target.files)
   for (const file of files) {
-    const fd = new FormData()
-    fd.append('file', file)
-    fd.append('client_id', route.params.id)
-    fd.append('type', guessDocType(file.name))
     try {
-      await api.post('/documents', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      await uploadDocument(file, guessDocType(file.name), route.params.id)
       toast.success(`${file.name} carregado`)
     } catch(e) {
-      toast.error(`Erro ao carregar ${file.name}`)
+      toast.error(`Erro ao carregar ${file.name}: ${e.response?.data?.message || 'falha no envio'}`)
     }
   }
   await load()

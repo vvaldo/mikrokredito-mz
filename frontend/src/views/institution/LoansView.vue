@@ -131,7 +131,7 @@ function statusLabel(s){ return ({completed:'Liquidado',active:'Activo',overdue:
 const totalPrincipal = computed(()=>loans.value.reduce((s,l)=>s+disbursedAmount(l),0))
 const totalRepayable = computed(()=>loans.value.reduce((s,l)=>s+repayableAmount(l),0))
 const totalBalance = computed(()=>loans.value.reduce((s,l)=>s+balanceAmount(l),0))
-async function load(){ try{ const {data}=await api.get('/loans/active/list?limit=5000'); loans.value=(data.data||[]).filter(l=>['active','overdue','completed','approved_pending_disbursement','disbursed_without_schedule'].includes(displayStatus(l))) }catch(e){ toast.error(e.response?.data?.message||'Erro ao carregar empréstimos') } }
+async function load(){ try{ const {data}=await api.get('/loans/active/list?limit=100000'); loans.value=(data.data||[]).filter(l=>['active','overdue','completed','approved_pending_disbursement','disbursed_without_schedule'].includes(displayStatus(l))) }catch(e){ toast.error(e.response?.data?.message||'Erro ao carregar empréstimos') } }
 function toggle(l){ opened.value[l.id]=!opened.value[l.id] }
 function viewLoan(l){ selected.value=l; modal.value='view' }
 function openPay(l){ selected.value=l; pay.value={loan_id:l.id, method:'bank_transfer', amount:null, external_reference:'', phone_number:'', receipt:null}; modal.value='pay' }

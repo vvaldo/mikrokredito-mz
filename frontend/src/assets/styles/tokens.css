@@ -83,3 +83,23 @@
   --mk-content-max: 1280px;
   --mk-z-dropdown:100; --mk-z-sticky:200; --mk-z-modal:400; --mk-z-toast:600;
 }
+
+/* ── DARK MODE ── */
+[data-theme=dark] {
+  --erp-bg:       #0b1220;
+  --erp-surface:  #101a2c;
+  --mk-surface:   #101a2c;
+  --mk-surface-2: #16223a;
+  --mk-surface-3: #0b1220;
+  --mk-border:    rgba(148,163,184,.12);
+  --mk-border-2:  rgba(148,163,184,.22);
+  --mk-text:      #e2e8f0;
+  --mk-text-1:    #e2e8f0;
+  --mk-text-2:    #94a3b8;
+  --mk-text-3:    #64748b;
+  --mk-shadow-xs: 0 1px 4px rgba(0,0,0,.3);
+  --mk-shadow-sm: 0 2px 8px rgba(0,0,0,.35);
+  --mk-shadow:    0 4px 16px rgba(0,0,0,.4);
+  --mk-shadow-md: 0 8px 28px rgba(0,0,0,.45);
+  --mk-shadow-lg: 0 16px 48px rgba(0,0,0,.5);
+}

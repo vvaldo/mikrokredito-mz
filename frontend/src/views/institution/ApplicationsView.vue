@@ -106,7 +106,7 @@ function totalInterest(r){ return Math.max(0, Number(r.total_repayable||0) - Num
 function totalWithInterest(r){ return Number(r.total_repayable || r.approved_amount || r.requested_amount || 0) }
 function disbursedValue(r){ return Number(r.approved_amount || r.requested_amount || 0) }
 function paymentSchedules(r){ return r.Loan?.PaymentSchedules || [] }
-async function load(){loading.value=true; try{const [lo,cl,pr]=await Promise.all([api.get('/loans',{params:{limit:100}}),api.get('/clients',{params:{limit:200}}),api.get('/products')]); items.value=lo.data.data||[]; clients.value=cl.data.data||[]; products.value=pr.data.data||[]} finally{loading.value=false}}
+async function load(){loading.value=true; try{const [lo,cl,pr]=await Promise.all([api.get('/loans',{params:{limit:100000}}),api.get('/clients',{params:{limit:100000}}),api.get('/products')]); items.value=lo.data.data||[]; clients.value=cl.data.data||[]; products.value=pr.data.data||[]} finally{loading.value=false}}
 function close(){modal.value=null;selected.value=null;action.value=null;reason.value=''}
 async function openView(r){ try{ const {data}=await api.get('/loans/'+r.id); selected.value=data.data||r }catch(e){ selected.value=r } modal.value='view'}
 function openNew(){newForm.value={client_id:'',product_id:'',requested_amount:null,term_months:12,purpose:''}; modal.value='new'}

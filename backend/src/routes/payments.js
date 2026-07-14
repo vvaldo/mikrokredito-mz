@@ -147,7 +147,7 @@ router.get('/', authenticate, async (req, res, next) => {
     const { count, rows } = await PaymentTransaction.findAndCountAll({
       where,
       include: [{ model: Loan, include: [{ model: LoanApplication, include: [{ model: Client, include: [{ model: User, attributes: ['full_name','email','phone'] }] }, CreditProduct] }] }],
-      order: [['created_at','DESC']], limit: Math.min(parseInt(limit), 5000), offset: (parseInt(page)-1)*parseInt(limit),
+      order: [['created_at','DESC']], limit: Math.min(parseInt(limit), 200000), offset: (parseInt(page)-1)*parseInt(limit),
     });
     const registrarIds = [...new Set(rows.map(r => r.registered_by).filter(Boolean))];
     const registrars = registrarIds.length ? await User.findAll({ where: { id: { [Op.in]: registrarIds } }, attributes: ['id','full_name','email','role'], raw: true }) : [];

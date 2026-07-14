@@ -155,7 +155,7 @@ function exportExcel() {
 
 async function load() {
   try {
-    const { data } = await api.get('/payments', { params: { limit: 500 } })
+    const { data } = await api.get('/payments', { params: { limit: 100000 } })
     rows.value = data.data || []
   } catch (e) { toast.error(e.response?.data?.message || 'Erro ao carregar pagamentos') }
 }
