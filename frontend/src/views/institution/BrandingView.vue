@@ -70,6 +70,27 @@
           </div>
         </div>
 
+        <!-- Notification channels (per-institution) -->
+        <div v-if="isInstitution" class="card mb-4">
+          <div class="card-title">📣 Canais de notificação desta instituição</div>
+          <p class="form-hint" style="margin-bottom:10px">Controla se os clientes desta instituição recebem notificações por cada canal. Os templates e regras de envio ficam em "Notificações".</p>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <label class="toggle"><input type="checkbox" v-model="channels.notif_email_enabled" /><span class="toggle-track"></span></label>
+              <span style="font-size:12px;color:var(--mk-text-1)">Email</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <label class="toggle"><input type="checkbox" v-model="channels.notif_sms_enabled" /><span class="toggle-track"></span></label>
+              <span style="font-size:12px;color:var(--mk-text-1)">SMS</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <label class="toggle"><input type="checkbox" v-model="channels.notif_whatsapp_enabled" /><span class="toggle-track"></span></label>
+              <span style="font-size:12px;color:var(--mk-text-1)">WhatsApp</span>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" style="margin-top:14px" :disabled="savingChannels" @click="saveChannels">{{ savingChannels ? 'A gravar...' : 'Guardar canais' }}</button>
+        </div>
+
         <!-- UPLOAD Logo + Favicon -->
         <div class="card mb-4">
           <div class="card-title">🖼️ Logotipo e Favicon — Upload de ficheiro</div>
@@ -199,13 +220,42 @@
 </template>
 
 <script setup>
-import { reactive, onMounted, ref } from 'vue'
+import { reactive, onMounted, ref, computed } from 'vue'
 import { useBrandingStore } from '@/stores/branding'
+import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
+import api from '@/services/api'
 
 const brand = useBrandingStore()
+const auth = useAuthStore()
 const toast = useToast()
 const dragOverLogo = ref(false)
+
+const isInstitution = computed(() => ['inst_admin', 'inst_agent'].includes(auth.user?.role))
+const savingChannels = ref(false)
+const channels = reactive({ notif_email_enabled: true, notif_sms_enabled: true, notif_whatsapp_enabled: true })
+
+async function loadChannels() {
+  if (!isInstitution.value || !auth.user?.institution_id) return
+  try {
+    const { data } = await api.get(`/institutions/${auth.user.institution_id}`)
+    Object.assign(channels, {
+      notif_email_enabled: data.data.notif_email_enabled,
+      notif_sms_enabled: data.data.notif_sms_enabled,
+      notif_whatsapp_enabled: data.data.notif_whatsapp_enabled,
+    })
+  } catch (e) { toast.error('Erro ao carregar canais de notificação') }
+}
+
+async function saveChannels() {
+  savingChannels.value = true
+  try {
+    await api.patch(`/institutions/${auth.user.institution_id}`, { ...channels })
+    toast.success('Canais de notificação actualizados')
+  } catch (e) {
+    toast.error(e.response?.data?.message || 'Erro ao gravar canais de notificação')
+  } finally { savingChannels.value = false }
+}
 
 const form = reactive({
   name:'',tagline:'',logoUrl:'',faviconUrl:'',
@@ -288,5 +338,5 @@ function toBase64(file) {
   })
 }
 
-onMounted(load)
+onMounted(() => { load(); loadChannels() })
 </script>

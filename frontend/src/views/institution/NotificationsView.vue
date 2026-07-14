@@ -110,20 +110,20 @@
     <!-- ── RULES TAB ── -->
     <template v-else-if="activeTab==='rules'">
       <div class="modern-card">
-        <p class="muted" style="margin-bottom:14px">Configure quais eventos enviam notificações e por que canal.</p>
+        <p class="muted" style="margin-bottom:14px">Configure quais eventos enviam notificações e por que canal. Gravado na base de dados.</p>
         <table class="modern-table">
           <thead><tr><th>Evento</th><th>Email</th><th>SMS</th><th>WhatsApp</th><th>Activo</th></tr></thead>
           <tbody>
-            <tr v-for="r in defaultRules" :key="r.event">
-              <td style="font-size:12px;font-weight:500">{{ r.label }}</td>
-              <td><label class="toggle"><input type="checkbox" v-model="r.email"><span class="toggle-track"/></label></td>
-              <td><label class="toggle"><input type="checkbox" v-model="r.sms"><span class="toggle-track"/></label></td>
-              <td><label class="toggle"><input type="checkbox" v-model="r.whatsapp"><span class="toggle-track"/></label></td>
-              <td><label class="toggle"><input type="checkbox" v-model="r.active"><span class="toggle-track"/></label></td>
+            <tr v-for="ev in eventKeys" :key="ev.k">
+              <td style="font-size:12px;font-weight:500">{{ ev.label }}</td>
+              <td><label class="toggle"><input type="checkbox" v-model="rulesByEvent[ev.k].email"><span class="toggle-track"/></label></td>
+              <td><label class="toggle"><input type="checkbox" v-model="rulesByEvent[ev.k].sms"><span class="toggle-track"/></label></td>
+              <td><label class="toggle"><input type="checkbox" v-model="rulesByEvent[ev.k].whatsapp"><span class="toggle-track"/></label></td>
+              <td><label class="toggle"><input type="checkbox" v-model="rulesByEvent[ev.k].is_active"><span class="toggle-track"/></label></td>
             </tr>
           </tbody>
         </table>
-        <button class="btn btn-primary" style="margin-top:14px" @click="toast.success('Regras guardadas')">Guardar regras</button>
+        <button class="btn btn-primary" style="margin-top:14px" :disabled="savingRules" @click="saveRules">{{ savingRules ? 'A gravar...' : 'Guardar regras' }}</button>
       </div>
     </template>
 
@@ -246,14 +246,45 @@ const eventKeys = [
   { k:'docs_requested',       label:'Documentos solicitados' },
 ]
 
-const defaultRules = ref([
-  { event:'loan_submitted',       label:'Pedido submetido',        email:true, sms:true,  whatsapp:false, active:true },
-  { event:'loan_approved',        label:'Pedido aprovado',         email:true, sms:true,  whatsapp:false, active:true },
-  { event:'loan_rejected',        label:'Pedido rejeitado',        email:true, sms:true,  whatsapp:false, active:true },
-  { event:'loan_disbursed',       label:'Empréstimo desembolsado', email:true, sms:true,  whatsapp:false, active:true },
-  { event:'payment_received',     label:'Pagamento recebido',      email:true, sms:true,  whatsapp:false, active:true },
-  { event:'payment_due_reminder', label:'Lembrete de vencimento',  email:false,sms:true,  whatsapp:false, active:true },
-])
+const rulesByEvent = ref({})
+const savingRules = ref(false)
+
+function buildRulesView() {
+  const map = {}
+  for (const ev of eventKeys) {
+    const existing = notif.rules.find(r => r.event === ev.k)
+    map[ev.k] = existing
+      ? {
+          id: existing.id, event: ev.k,
+          email: existing.channels.includes('email'), sms: existing.channels.includes('sms'), whatsapp: existing.channels.includes('whatsapp'),
+          is_active: existing.is_active, notify_client: existing.notify_client, notify_agent: existing.notify_agent,
+          notify_admin: existing.notify_admin, delay_minutes: existing.delay_minutes,
+        }
+      : { id: null, event: ev.k, email: false, sms: false, whatsapp: false, is_active: true, notify_client: true, notify_agent: false, notify_admin: false, delay_minutes: 0 }
+  }
+  rulesByEvent.value = map
+}
+buildRulesView() // valores por omissão antes do fetch, para o template nunca ver undefined
+
+async function loadRules() { await notif.fetchRules(); buildRulesView() }
+
+async function saveRules() {
+  savingRules.value = true
+  try {
+    for (const ev of eventKeys) {
+      const r = rulesByEvent.value[ev.k]
+      const channels = [r.email && 'email', r.sms && 'sms', r.whatsapp && 'whatsapp'].filter(Boolean)
+      if (!r.id && !channels.length) continue // nada por gravar para este evento
+      await notif.saveRule({
+        id: r.id, event: r.event, channels, is_active: r.is_active,
+        notify_client: r.notify_client, notify_agent: r.notify_agent, notify_admin: r.notify_admin, delay_minutes: r.delay_minutes,
+      })
+    }
+    toast.success('Regras guardadas na base de dados')
+    await loadRules()
+  } catch (e) { toast.error(e.response?.data?.message || 'Erro ao guardar regras') }
+  finally { savingRules.value = false }
+}
 
 async function loadLogs()  { try { const {data}=await notif.fetchLogs({limit:200}) } catch(e){} logs.value = notif.logs }
 async function loadTmpls() { tmplLoading.value=true; await notif.fetchTemplates(); templates.value=notif.templates; tmplLoading.value=false }
@@ -291,5 +322,5 @@ const stripHtml = s => s?.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().sli
 const statusBadge = s => ({sent:'badge-approved',delivered:'badge-approved',failed:'badge-rejected',queued:'badge-warning',sending:'badge-warning'}[s]||'badge-neutral')
 const evLabel = ev => eventKeys.find(e=>e.k===ev)?.label || ev
 
-onMounted(() => { loadLogs(); loadTmpls() })
+onMounted(() => { loadLogs(); loadTmpls(); loadRules() })
 </script>
