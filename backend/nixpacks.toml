@@ -1,0 +1,8 @@
+# Nixpacks — adiciona o Chromium do sistema para o whatsapp-web.js (Puppeteer).
+# Sem isto, o Puppeteer tenta descarregar o seu próprio Chromium, o que falha
+# neste ambiente de build.
+[phases.setup]
+nixPkgs = ["nodejs_20", "chromium"]
+
+[variables]
+PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = "true"

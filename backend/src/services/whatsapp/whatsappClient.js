@@ -18,8 +18,24 @@ let readyInfo = null; // { number, pushname }
 
 function resolveChromePath() {
   if (process.env.PUPPETEER_EXECUTABLE_PATH) return process.env.PUPPETEER_EXECUTABLE_PATH;
-  const candidates = ['/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome'];
-  return candidates.find(p => fs.existsSync(p));
+
+  const fixedCandidates = ['/usr/bin/chromium-browser', '/usr/bin/chromium', '/usr/bin/google-chrome'];
+  const fixed = fixedCandidates.find(p => fs.existsSync(p));
+  if (fixed) return fixed;
+
+  // Nix (Nixpacks) instala o Chromium num caminho de store com hash variável, não fixo —
+  // resolve-se pelo PATH em vez de um caminho hardcoded.
+  try {
+    const { execSync } = require('child_process');
+    for (const bin of ['chromium', 'chromium-browser', 'google-chrome']) {
+      try {
+        const resolved = execSync(`which ${bin}`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+        if (resolved) return resolved;
+      } catch (e) { /* não encontrado, tenta o próximo */ }
+    }
+  } catch (e) {}
+
+  return undefined; // deixa o Puppeteer usar o Chromium empacotado, se existir
 }
 
 function normalizeToChatId(phone) {
