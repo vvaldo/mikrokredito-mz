@@ -34,8 +34,8 @@ router.patch('/me', authenticate, audit('client_profile_updated'), async (req, r
     for (const k of ['full_name', 'phone', 'email']) if (req.body[k] !== undefined) userPayload[k] = req.body[k];
     if (Object.keys(userPayload).length) await client.User.update(userPayload);
     const clientPayload = {};
-    // Cliente NÃO altera salário: mensal_income é reservado ao gestor.
-    for (const k of ['bi_number','nuit','date_of_birth','gender','marital_status','nationality','province','district','address','birth_place','activity_type','employment_type','employer_name','employer_location','business_name','doc_type','doc_issue_date','doc_expiry_date','dependents','guarantors','photo_url','kyc_status','kyc_notes','crc_status','crc_comment','credit_score','monthly_income']) {
+    // Cliente NÃO altera salário, KYC, CRC nem credit_score: reservados à instituição.
+    for (const k of ['bi_number','nuit','date_of_birth','gender','marital_status','nationality','province','district','address','birth_place','activity_type','employment_type','employer_name','employer_location','business_name','doc_type','doc_issue_date','doc_expiry_date','dependents','guarantors','photo_url']) {
       if (req.body[k] !== undefined) clientPayload[k] = req.body[k];
     }
     if (Object.keys(clientPayload).length) await client.update(clientPayload);

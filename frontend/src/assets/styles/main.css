@@ -11,6 +11,8 @@
 @import './forms.css';       /* 5. Inputs, selects, labels */
 @import './buttons.css';     /* 6. Botões */
 @import './modals.css';      /* 7. Modais, drawers, transições */
+@import './sidebar.css';     /* 8. Polish extra do sidebar */
+@import './responsive-admin.css'; /* 9. Dashboards/relatórios/auditoria + responsividade mobile */
 
 /* ── Utilitários extra ── */
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}

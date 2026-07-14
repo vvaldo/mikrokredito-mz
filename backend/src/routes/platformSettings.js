@@ -5,11 +5,14 @@ const { PlatformSetting } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 
 // GET /platform-settings — público (login/topbar precisam antes de autenticar)
-router.get('/', async (req, res, next) => {
+// Nunca deve derrubar a app com 500: branding é acessório, não crítico.
+router.get('/', async (req, res) => {
   try {
     const row = await PlatformSetting.findByPk('default');
     res.json({ success: true, data: row?.data || {} });
-  } catch (err) { next(err); }
+  } catch (err) {
+    res.json({ success: true, data: {} });
+  }
 });
 
 // PUT /platform-settings — apenas super_admin

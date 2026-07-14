@@ -1,7 +1,7 @@
 // src/server.js
 require('dotenv').config();
 const app = require('./app');
-const { sequelize } = require('./models');
+const { sequelize, PlatformSetting } = require('./models');
 const { initQueues } = require('./queues');
 const logger = require('./utils/logger');
 
@@ -15,6 +15,10 @@ async function start() {
     if (process.env.NODE_ENV !== 'production') {
       await sequelize.sync({ alter: true });
       logger.info('Models synchronised');
+    } else {
+      // Garante que tabelas novas (ex.: platform_settings) existem também em produção,
+      // sem tocar no schema de tabelas já existentes.
+      await PlatformSetting.sync();
     }
 
     await initQueues();

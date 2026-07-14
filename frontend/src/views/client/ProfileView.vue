@@ -21,19 +21,89 @@
       <div class="modern-grid-2">
         <div class="modern-card">
           <h2>Dados do cliente</h2>
+
+          <!-- Foto -->
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+            <div class="avatar xl" style="background:var(--mk-surface-2);border:2px dashed var(--mk-border)">
+              <img v-if="form.photo_url" :src="form.photo_url" style="width:100%;height:100%;object-fit:cover;border-radius:50%" />
+              <span v-else style="font-size:20px">📷</span>
+            </div>
+            <div>
+              <button type="button" class="btn btn-sm" @click="$refs.photoInput.click()">📷 {{ form.photo_url ? 'Alterar foto' : 'Carregar foto' }}</button>
+              <button v-if="form.photo_url" type="button" class="btn btn-sm btn-danger-soft" style="margin-left:6px" @click="form.photo_url=''">Remover</button>
+              <input ref="photoInput" type="file" accept="image/*" style="display:none" @change="onPhoto">
+            </div>
+          </div>
+
+          <div class="form-section">👤 Dados pessoais</div>
           <div class="form-grid">
             <input class="input" v-model="form.full_name" placeholder="Nome completo">
-            <input class="input" v-model="form.nuit" placeholder="NUIT">
-            <input class="input" v-model="form.bi_number" placeholder="Nº do BI">
-            <input class="input" v-model="form.phone" placeholder="Telefone / WhatsApp">
             <input class="input" v-model="form.email" placeholder="Email">
-            <input class="input" v-model="form.monthly_income" type="number" placeholder="Rendimento mensal">
+            <input class="input" v-model="form.phone" placeholder="Telefone / WhatsApp">
+            <input class="input" type="date" v-model="form.date_of_birth" placeholder="Data de nascimento">
+            <select class="input" v-model="form.gender">
+              <option value="">Género</option>
+              <option value="M">Masculino</option>
+              <option value="F">Feminino</option>
+            </select>
+            <select class="input" v-model="form.marital_status">
+              <option value="">Estado civil</option>
+              <option value="single">Solteiro(a)</option>
+              <option value="married">Casado(a)</option>
+              <option value="divorced">Divorciado(a)</option>
+              <option value="widowed">Viúvo(a)</option>
+            </select>
+            <input class="input" type="number" min="0" v-model="form.dependents" placeholder="Nº de dependentes">
+            <input class="input" v-model="form.nationality" placeholder="Nacionalidade">
+          </div>
+
+          <div class="form-section">🪪 Identificação</div>
+          <div class="form-grid">
+            <select class="input" v-model="form.doc_type">
+              <option value="BI">Bilhete de Identidade (BI)</option>
+              <option value="Passaporte">Passaporte</option>
+              <option value="DIRE">DIRE</option>
+              <option value="Outro">Outro</option>
+            </select>
+            <input class="input" v-model="form.bi_number" placeholder="Nº do documento">
+            <input class="input" type="date" v-model="form.doc_issue_date" placeholder="Data de emissão">
+            <input class="input" type="date" v-model="form.doc_expiry_date" placeholder="Data de validade">
+            <input class="input" v-model="form.nuit" placeholder="NUIT">
+            <input class="input" v-model="form.birth_place" placeholder="Local de nascimento">
+          </div>
+
+          <div class="form-section">📍 Morada</div>
+          <div class="form-grid">
             <input class="input" v-model="form.province" placeholder="Província">
             <input class="input" v-model="form.district" placeholder="Distrito">
             <input class="input" v-model="form.address" placeholder="Endereço">
-            <input class="input" v-model="form.activity_type" placeholder="Actividade / profissão">
           </div>
-          <button class="btn btn-primary" style="margin-top:12px" :disabled="saving" @click="saveProfile">Gravar perfil</button>
+
+          <div class="form-section">💼 Actividade profissional</div>
+          <div class="form-grid">
+            <input class="input" v-model="form.activity_type" placeholder="Actividade / profissão">
+            <select class="input" v-model="form.employment_type">
+              <option value="">Tipo de emprego</option>
+              <option value="self_employed">Conta própria / Informal</option>
+              <option value="employed">Empregado (por conta de outrem)</option>
+              <option value="civil_servant">Funcionário público</option>
+              <option value="retired">Reformado</option>
+            </select>
+            <input class="input" v-model="form.employer_name" placeholder="Nome do empregador">
+            <input class="input" v-model="form.employer_location" placeholder="Localização do empregador">
+            <input class="input" v-model="form.monthly_income" type="number" placeholder="Rendimento mensal" disabled title="Reservado à instituição">
+          </div>
+          <p class="muted" style="margin-top:-6px;margin-bottom:10px">O rendimento mensal só pode ser alterado pela instituição.</p>
+
+          <div class="form-section">🤝 Avalistas</div>
+          <div v-for="(av,i) in form.guarantors" :key="i" style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+            <input class="input" v-model="av.name" placeholder="Nome do avalista">
+            <input class="input" v-model="av.phone" placeholder="Telefone">
+            <button type="button" class="btn btn-sm btn-danger-soft" @click="form.guarantors.splice(i,1)">✕</button>
+          </div>
+          <button type="button" class="btn btn-sm btn-blue-soft" @click="form.guarantors.push({name:'',phone:''})">+ Adicionar avalista</button>
+
+          <div><button class="btn btn-primary" style="margin-top:14px" :disabled="saving" @click="saveProfile">Gravar perfil</button></div>
         </div>
 
         <div class="modern-card">
@@ -77,7 +147,13 @@ const toast = useToast()
 const loading = ref(true), saving = ref(false), sendingToken = ref(false), resetting = ref(false)
 const profile = ref(null)
 const docs = ref([])
-const form = ref({ full_name:'', email:'', phone:'', nuit:'', bi_number:'', monthly_income:'', province:'', district:'', address:'', activity_type:'' })
+const form = ref({
+  full_name:'', email:'', phone:'', nuit:'', bi_number:'', monthly_income:'', province:'', district:'', address:'', activity_type:'',
+  date_of_birth:'', gender:'', marital_status:'', dependents:0, nationality:'',
+  doc_type:'BI', doc_issue_date:'', doc_expiry_date:'', birth_place:'',
+  employment_type:'', employer_name:'', employer_location:'',
+  guarantors:[], photo_url:'',
+})
 const password = ref({ token:'', new_password:'' })
 const types = [
   ['bi','BI / Documento de identificação',true],
@@ -100,7 +176,17 @@ async function load(){
     profile.value = data.data
     docs.value = data.data.Documents || []
     const u = data.data.User || {}
-    Object.assign(form.value, { full_name:u.full_name||'', email:u.email||'', phone:u.phone||'', nuit:data.data.nuit||'', bi_number:data.data.bi_number||'', monthly_income:data.data.monthly_income||'', province:data.data.province||'', district:data.data.district||'', address:data.data.address||'', activity_type:data.data.activity_type||'' })
+    Object.assign(form.value, {
+      full_name:u.full_name||'', email:u.email||'', phone:u.phone||'',
+      nuit:data.data.nuit||'', bi_number:data.data.bi_number||'', monthly_income:data.data.monthly_income||'',
+      province:data.data.province||'', district:data.data.district||'', address:data.data.address||'', activity_type:data.data.activity_type||'',
+      date_of_birth:data.data.date_of_birth?.slice(0,10)||'', gender:data.data.gender||'', marital_status:data.data.marital_status||'',
+      dependents:data.data.dependents||0, nationality:data.data.nationality||'',
+      doc_type:data.data.doc_type||'BI', doc_issue_date:data.data.doc_issue_date?.slice(0,10)||'', doc_expiry_date:data.data.doc_expiry_date?.slice(0,10)||'',
+      birth_place:data.data.birth_place||'',
+      employment_type:data.data.employment_type||'', employer_name:data.data.employer_name||'', employer_location:data.data.employer_location||'',
+      guarantors:data.data.guarantors||[], photo_url:data.data.photo_url||'',
+    })
   } finally { loading.value = false }
 }
 async function saveProfile(){
@@ -126,6 +212,13 @@ async function resetPassword(){
     password.value = { token:'', new_password:'' }
     toast.success('Senha alterada na base de dados.')
   } finally { resetting.value = false }
+}
+function onPhoto(e){
+  const file = e.target.files?.[0]; if(!file) return
+  if (file.size > 2*1024*1024) return toast.error('Foto deve ter menos de 2MB')
+  const reader = new FileReader()
+  reader.onload = ev => { form.value.photo_url = ev.target.result }
+  reader.readAsDataURL(file)
 }
 async function upload(type,e){
   const file=e.target.files?.[0]; if(!file) return
