@@ -2,8 +2,11 @@
 // Sessão WhatsApp Web autenticada por QR code (whatsapp-web.js), sem API oficial da Meta.
 const path = require('path');
 const fs = require('fs');
-const QRCode = require('qrcode');
 const logger = require('../../utils/logger');
+// whatsapp-web.js e qrcode são pesados (Puppeteer/Chromium) e opcionais para o resto da
+// app arrancar: são exigidos em runtime (lazy), nunca no topo do módulo. Assim, se faltar
+// `npm install` destas dependências no servidor, só a funcionalidade de WhatsApp falha —
+// o resto da API continua a funcionar normalmente.
 
 const AUTH_DIR = path.join(__dirname, '..', '..', '..', '.wwebjs_auth');
 
@@ -36,7 +39,15 @@ async function initialize() {
   status = 'initializing';
   lastError = null;
 
-  const { Client, LocalAuth } = require('whatsapp-web.js');
+  let Client, LocalAuth;
+  try {
+    ({ Client, LocalAuth } = require('whatsapp-web.js'));
+  } catch (err) {
+    status = 'auth_failure';
+    lastError = 'Dependência whatsapp-web.js não instalada no servidor. Corra "npm install" no backend e reinicie.';
+    logger.error('WhatsApp: whatsapp-web.js não está instalado', { error: err.message });
+    return;
+  }
 
   client = new Client({
     authStrategy: new LocalAuth({ dataPath: AUTH_DIR }),
@@ -49,7 +60,10 @@ async function initialize() {
 
   client.on('qr', async (qr) => {
     status = 'qr';
-    try { qrDataUrl = await QRCode.toDataURL(qr); } catch (e) { logger.error('WhatsApp: falha ao gerar QR', { error: e.message }); }
+    try {
+      const QRCode = require('qrcode');
+      qrDataUrl = await QRCode.toDataURL(qr);
+    } catch (e) { logger.error('WhatsApp: falha ao gerar QR (dependência qrcode em falta?)', { error: e.message }); }
     logger.info('WhatsApp: código QR gerado, aguardando leitura');
   });
 
