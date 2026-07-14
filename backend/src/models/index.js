@@ -23,7 +23,7 @@ const Institution = sequelize.define('Institution', {
   // Notification preferences
   notif_email_enabled: { type: DataTypes.BOOLEAN, defaultValue: true },
   notif_sms_enabled: { type: DataTypes.BOOLEAN, defaultValue: true },
-  notif_whatsapp_enabled: { type: DataTypes.BOOLEAN, defaultValue: false },
+  notif_whatsapp_enabled: { type: DataTypes.BOOLEAN, defaultValue: true },
   notif_sender_name: DataTypes.STRING,
   notif_email_from: DataTypes.STRING,
   notif_sms_sender: DataTypes.STRING,

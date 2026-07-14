@@ -1,0 +1,21 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente
+.env
+.env.*
+
+# Sessão do WhatsApp (whatsapp-web.js) — credenciais de sessão, nunca versionar
+backend/.wwebjs_auth/
+backend/.wwebjs_cache/
+
+# Uploads e logs do backend
+backend/uploads/
+backend/logs/
+
+# Build do frontend
+frontend/dist/
+
+# Sistema
+.DS_Store
+Thumbs.db

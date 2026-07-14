@@ -53,6 +53,7 @@ app.use(`${API}/smtp-test`, require('./routes/smtpTest'));
 app.use(`${API}/users`, require('./routes/users'));
 app.use(`${API}/roles`, require('./routes/roles'));
 app.use(`${API}/platform-settings`, require('./routes/platformSettings'));
+app.use(`${API}/whatsapp`, require('./routes/whatsapp'));
 
 // Health check
 app.get('/health', (req, res) => res.json({

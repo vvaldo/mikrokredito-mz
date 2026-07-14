@@ -12,10 +12,10 @@ async function seed() {
 
   // Institutions
   const institutions = await Promise.all([
-    Institution.upsert({ id: 'inst-bo', name: 'Banco Oportunidade', acronym: 'BO', color: '#185FA5', province: 'Maputo', email: 'geral@bancooportunidade.co.mz', status: 'active', notif_email_enabled: true, notif_sms_enabled: true }),
-    Institution.upsert({ id: 'inst-gm', name: 'GAPI Microfinanças',  acronym: 'GM', color: '#7C3AED', province: 'Beira',    email: 'geral@gapi.co.mz',              status: 'active', notif_email_enabled: true, notif_sms_enabled: true }),
-    Institution.upsert({ id: 'inst-tc', name: 'Tchuma Microcrédito', acronym: 'TC', color: '#A32D2D', province: 'Nampula',  email: 'geral@tchuma.co.mz',            status: 'active', notif_email_enabled: true, notif_sms_enabled: true }),
-    Institution.upsert({ id: 'inst-fd', name: 'FDD Mozambique',      acronym: 'FD', color: '#0F766E', province: 'Inhambane',email: 'geral@fdd.co.mz',               status: 'active', notif_email_enabled: true, notif_sms_enabled: false }),
+    Institution.upsert({ id: 'inst-bo', name: 'Banco Oportunidade', acronym: 'BO', color: '#185FA5', province: 'Maputo', email: 'geral@bancooportunidade.co.mz', status: 'active', notif_email_enabled: true, notif_sms_enabled: true, notif_whatsapp_enabled: true }),
+    Institution.upsert({ id: 'inst-gm', name: 'GAPI Microfinanças',  acronym: 'GM', color: '#7C3AED', province: 'Beira',    email: 'geral@gapi.co.mz',              status: 'active', notif_email_enabled: true, notif_sms_enabled: true, notif_whatsapp_enabled: true }),
+    Institution.upsert({ id: 'inst-tc', name: 'Tchuma Microcrédito', acronym: 'TC', color: '#A32D2D', province: 'Nampula',  email: 'geral@tchuma.co.mz',            status: 'active', notif_email_enabled: true, notif_sms_enabled: true, notif_whatsapp_enabled: true }),
+    Institution.upsert({ id: 'inst-fd', name: 'FDD Mozambique',      acronym: 'FD', color: '#0F766E', province: 'Inhambane',email: 'geral@fdd.co.mz',               status: 'active', notif_email_enabled: true, notif_sms_enabled: false, notif_whatsapp_enabled: true }),
   ]);
 
   // Users
@@ -47,6 +47,14 @@ async function seed() {
     { id: uuidv4(), key: 'guarantees_review',channel: 'sms',   language: 'pt', body: 'MicroCredit: Pedido {{reference}} segue para análise por garantias. Um agente contactará em breve.', variables: ['reference'] },
     { id: uuidv4(), key: 'client_registered',channel: 'email', language: 'pt', subject: 'Bem-vindo(a) ao MicroCredit SYSTEM!', body: '<p>Caro(a) {{clientName}},</p><p>A sua conta foi criada com sucesso. Complete o seu perfil KYC para poder submeter pedidos de crédito.</p>', variables: ['clientName'] },
     { id: uuidv4(), key: 'payment_due_reminder', channel: 'sms', language: 'pt', body: 'MicroCredit: A sua prestação de {{amount}} MZN vence em {{dueDate}}. Pague via M-Pesa, e-Mola ou balcão.', variables: ['amount','dueDate'] },
+
+    // WhatsApp (whatsapp-web.js — sessão própria, sem API oficial da Meta)
+    { id: uuidv4(), key: 'loan_approved',        channel: 'whatsapp', language: 'pt', body: 'MicroCredit: Caro(a) {{clientName}}, o seu pedido {{reference}} foi *aprovado*. Valor: {{amount}} MZN. Prestação: {{installment}} MZN/mês.', variables: ['clientName','reference','amount','installment'] },
+    { id: uuidv4(), key: 'loan_rejected',        channel: 'whatsapp', language: 'pt', body: 'MicroCredit: Pedido {{reference}} não foi aprovado. Motivo: {{reason}}. Contacte a instituição para mais informação.', variables: ['reference','reason'] },
+    { id: uuidv4(), key: 'loan_disbursed',       channel: 'whatsapp', language: 'pt', body: 'MicroCredit: Parabéns {{clientName}}! O seu empréstimo {{reference}} no valor de {{amount}} MZN foi desembolsado.', variables: ['clientName','reference','amount'] },
+    { id: uuidv4(), key: 'payment_received',     channel: 'whatsapp', language: 'pt', body: 'MicroCredit: Pagamento de {{amount}} MZN via {{method}} confirmado. Ref: {{reference}}. Obrigado.', variables: ['amount','method','reference'] },
+    { id: uuidv4(), key: 'guarantees_review',    channel: 'whatsapp', language: 'pt', body: 'MicroCredit: Pedido {{reference}} segue para análise por garantias. Um agente contactará em breve.', variables: ['reference'] },
+    { id: uuidv4(), key: 'payment_due_reminder', channel: 'whatsapp', language: 'pt', body: 'MicroCredit: A sua prestação de {{amount}} MZN vence em {{dueDate}}. Pague via M-Pesa, e-Mola ou balcão.', variables: ['amount','dueDate'] },
   ];
 
   for (const t of templates) {
@@ -56,13 +64,13 @@ async function seed() {
   // Notification Rules (global)
   const rules = [
     { id: uuidv4(), event: 'loan_submitted',    channels: ['email','sms'],             notify_client: true,  notify_agent: false, notify_admin: true,  delay_minutes: 0,  is_active: true },
-    { id: uuidv4(), event: 'loan_approved',      channels: ['email','sms'],             notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
-    { id: uuidv4(), event: 'loan_rejected',      channels: ['email','sms'],             notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
+    { id: uuidv4(), event: 'loan_approved',      channels: ['email','sms','whatsapp'],  notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
+    { id: uuidv4(), event: 'loan_rejected',      channels: ['email','sms','whatsapp'],  notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
     { id: uuidv4(), event: 'loan_disbursed',     channels: ['email','sms','whatsapp'],  notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
     { id: uuidv4(), event: 'guarantees_review',  channels: ['email','sms','whatsapp'],  notify_client: true,  notify_agent: true,  notify_admin: true,  delay_minutes: 30, is_active: true },
-    { id: uuidv4(), event: 'payment_received',   channels: ['email','sms'],             notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
+    { id: uuidv4(), event: 'payment_received',   channels: ['email','sms','whatsapp'],  notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
     { id: uuidv4(), event: 'payment_failed',     channels: ['email','sms'],             notify_client: true,  notify_agent: true,  notify_admin: false, delay_minutes: 5,  is_active: true },
-    { id: uuidv4(), event: 'payment_due_reminder', channels: ['sms'],                  notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
+    { id: uuidv4(), event: 'payment_due_reminder', channels: ['sms','whatsapp'],       notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
     { id: uuidv4(), event: 'kyc_approved',       channels: ['email','sms'],             notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
     { id: uuidv4(), event: 'kyc_rejected',       channels: ['email','sms'],             notify_client: true,  notify_agent: false, notify_admin: false, delay_minutes: 0,  is_active: true },
   ];

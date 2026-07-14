@@ -32,6 +32,7 @@ const routes = [
       { path: 'roles',        component: () => import('@/views/super/RolesView.vue') },
       { path: 'branding',    component: () => import('@/views/institution/BrandingView.vue') },
       { path: 'smtp-test',   component: () => import('@/views/auth/SmtpTestView.vue') },
+      { path: 'whatsapp',    component: () => import('@/views/super/WhatsappConfigView.vue') },
       { path: 'profile',     component: () => import('@/views/common/ProfileView.vue') },
       { path: 'compare',      component: () => import('@/views/client/CompareView.vue') },
       { path: 'applications', component: () => import('@/views/institution/ApplicationsView.vue') },

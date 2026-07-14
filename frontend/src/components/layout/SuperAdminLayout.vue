@@ -52,6 +52,7 @@ const I = {
   tag:   `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1H13V6L6 13L1 8L8 1z"/></svg>`,
   email: `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 3h12v8H1z"/><path d="M1 3l6 5 6-5"/></svg>`,
   cog:   `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="2"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2"/></svg>`,
+  chat:  `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 2h12v7H4l-3 3V2z"/></svg>`,
 }
 
 const menuItems = computed(() => [
@@ -63,6 +64,7 @@ const menuItems = computed(() => [
   { tab:'roles',        label:'Perfis/Privilégios',icon:I.shield,to:'/super/roles' },
   { tab:'branding',     label:'Marca / Login',   icon:I.cog,    to:'/super/branding' },
   { tab:'smtp-test',    label:'Testar SMTP',     icon:I.email,  to:'/super/smtp-test' },
+  { tab:'whatsapp',     label:'WhatsApp',        icon:I.chat,   to:'/super/whatsapp' },
   { sep:true, _key:'s1' },
   { tab:'applications', label:'Pedidos',         icon:I.file,   count:23, to:'/super/applications' },
   { tab:'loans',        label:'Empréstimos',     icon:I.file,   to:'/super/loans' },

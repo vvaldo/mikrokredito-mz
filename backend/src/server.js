@@ -3,6 +3,7 @@ require('dotenv').config();
 const app = require('./app');
 const { sequelize, PlatformSetting } = require('./models');
 const { initQueues } = require('./queues');
+const whatsappClient = require('./services/whatsapp/whatsappClient');
 const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 3000;
@@ -23,6 +24,9 @@ async function start() {
 
     await initQueues();
     logger.info('Queues initialised');
+
+    // Não bloqueia o arranque: só reconecta se já existir uma sessão WhatsApp gravada.
+    whatsappClient.autoInitIfSessionExists().catch(err => logger.warn('WhatsApp auto-init falhou', { error: err.message }));
 
     app.listen(PORT, () => {
       logger.info(`MicroCredit SYSTEM API running on port ${PORT} [${process.env.NODE_ENV}]`);
