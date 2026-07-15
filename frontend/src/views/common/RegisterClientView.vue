@@ -24,7 +24,7 @@
 
     <form @submit.prevent="handleNext">
       <!-- ── STEP 1: Pessoal ── -->
-      <div v-show="step===1" class="card mb-4 anim-fade">
+      <div v-if="step===1" class="card mb-4 anim-fade">
         <div class="form-section">👤 Dados Pessoais</div>
         <div class="form-row">
           <div class="form-group">
@@ -93,7 +93,7 @@
       </div>
 
       <!-- ── STEP 2: Documento + Morada ── -->
-      <div v-show="step===2" class="card mb-4 anim-fade">
+      <div v-if="step===2" class="card mb-4 anim-fade">
         <div class="form-section">🪪 Identificação</div>
         <div class="form-row">
           <div class="form-group">
@@ -155,7 +155,7 @@
       </div>
 
       <!-- ── STEP 3: Actividade ── -->
-      <div v-show="step===3" class="card mb-4 anim-fade">
+      <div v-if="step===3" class="card mb-4 anim-fade">
         <div class="form-section">💼 Actividade Económica</div>
         <div class="form-row">
           <div class="form-group">
@@ -206,7 +206,7 @@
       </div>
 
       <!-- ── STEP 4: Acesso + Documentos ── -->
-      <div v-show="step===4" class="card mb-4 anim-fade">
+      <div v-if="step===4" class="card mb-4 anim-fade">
         <div class="form-section">🔐 Dados de acesso</div>
         <div class="form-row">
           <div class="form-group">

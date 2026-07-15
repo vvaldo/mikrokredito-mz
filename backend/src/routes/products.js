@@ -46,8 +46,17 @@ router.patch('/:id', authenticate, authorize('super_admin'), audit('product_upda
   catch (err) { next(err); }
 });
 
-router.post('/:id/approve', authenticate, authorize('super_admin'), audit('product_approved'), async (req, res, next) => {
-  try { const p = await CreditProduct.findByPk(req.params.id); if (!p) return res.status(404).json({ success:false, message:'Não encontrado' }); await p.update({ status: 'active', is_visible: true }); await notifyAffectedUser({ user:req.user, actor:req.user, institutionId:p.institution_id, action:'product_approved', subject:'Produto aprovado - MicroCredit SYSTEM', body:`<p>O produto <strong>${p.name}</strong> foi aprovado e está disponível no simulador.</p>`, metadata:{ product_id:p.id } }); res.json({ success:true, message:'Produto aprovado e disponível no simulador.', data:p }); }
+router.post('/:id/approve', authenticate, authorize('super_admin', 'inst_admin'), audit('product_approved'), async (req, res, next) => {
+  try {
+    const p = await CreditProduct.findByPk(req.params.id);
+    if (!p) return res.status(404).json({ success:false, message:'Não encontrado' });
+    if (req.user.role === 'inst_admin' && req.user.institution_id !== p.institution_id) {
+      return res.status(403).json({ success:false, message:'Só pode aprovar produtos da sua instituição' });
+    }
+    await p.update({ status: 'active', is_visible: true });
+    await notifyAffectedUser({ user:req.user, actor:req.user, institutionId:p.institution_id, action:'product_approved', subject:'Produto aprovado - MicroCredit SYSTEM', body:`<p>O produto <strong>${p.name}</strong> foi aprovado e está disponível no simulador.</p>`, metadata:{ product_id:p.id } });
+    res.json({ success:true, message:'Produto aprovado e disponível no simulador.', data:p });
+  }
   catch (err) { next(err); }
 });
 

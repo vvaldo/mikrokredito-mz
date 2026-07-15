@@ -24,6 +24,7 @@ const I={
   plus:`<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="7" y1="1" x2="7" y2="13"/><line x1="1" y1="7" x2="13" y2="7"/></svg>`,
   file:`<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 1h7l3 3v9H2V1z"/><path d="M9 1v3h3"/></svg>`,
   calc:`<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="1" width="10" height="12" rx="1"/><line x1="4" y1="4" x2="10" y2="4"/></svg>`,
+  chart:`<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><polyline points="1,11 4,7 7,9 11,3"/><line x1="1" y1="13" x2="13" y2="13"/></svg>`,
 }
 const menuItems=[
   {tab:'dashboard', label:'Dashboard',      icon:I.home, to:'/agent/dashboard'},
@@ -34,6 +35,7 @@ const menuItems=[
   {tab:'applications', label:'Pedidos',     icon:I.file, to:'/agent/applications'},
   {tab:'apply',     label:'Novo pedido',    icon:I.plus, to:'/agent/apply'},
   {tab:'simulator', label:'Simulador',      icon:I.calc, to:'/agent/simulator'},
+  {tab:'compare',   label:'Comparar / Simular', icon:I.chart, to:'/agent/compare'},
   {sep:true,_key:'s3'},
   {tab:'profile',   label:'Meu Perfil',     icon:I.user, to:'/agent/profile'},
 ]

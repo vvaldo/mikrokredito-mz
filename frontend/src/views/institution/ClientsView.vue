@@ -7,20 +7,97 @@
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="closeModal"><div class="mk-modal wide"><div class="mk-modal-head"><h2>{{ title }}</h2><button class="modal-x" @click="closeModal">×</button></div>
-      <div v-if="modal==='view'" class="detail-grid"><div><span class="muted">Nome</span><strong>{{ selected.User?.full_name }}</strong></div><div><span class="muted">Email</span><strong>{{ selected.User?.email }}</strong></div><div><span class="muted">Telefone</span><strong>{{ selected.User?.phone }}</strong></div><div><span class="muted">Salário</span><strong>{{ mzn(selected.monthly_income) }}</strong></div><div><span class="muted">CRC</span><strong>{{ crcLabel(selected.crc_status) }}</strong></div><div><span class="muted">Comentário CRC</span><strong>{{ selected.crc_comment || '—' }}</strong></div></div>
-      <div v-if="modal==='docs'"><table class="modern-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Estado</th><th></th></tr></thead><tbody><tr v-for="d in selected.Documents" :key="d.id"><td>{{ d.type }}</td><td>{{ d.original_name }}</td><td><StatusBadge :status="d.status" /></td><td><div class="action-row"><button class="btn btn-sm" @click="downloadDoc(d)">Baixar</button><button class="btn btn-sm btn-primary" :disabled="d.status==='approved'" @click="reviewDoc(d,'approved')">Aprovar</button><button class="btn btn-sm btn-danger-soft" :disabled="d.status==='rejected'" @click="reviewDoc(d,'rejected')">Rejeitar</button></div></td></tr></tbody></table></div>
+      <div v-if="modal==='view'">
+        <div class="detail-grid mb-4"><div><span class="muted">Nome</span><strong>{{ selected.User?.full_name }}</strong></div><div><span class="muted">Email</span><strong>{{ selected.User?.email }}</strong></div><div><span class="muted">Telefone</span><strong>{{ selected.User?.phone }}</strong></div><div><span class="muted">Salário</span><strong>{{ mzn(selected.monthly_income) }}</strong></div></div>
+
+        <div class="form-section">🪪 KYC</div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Estado actual</label><div><StatusBadge :status="selected.kyc_status" /></div></div>
+          <div class="form-group"><label class="form-label">Notas de revisão</label><input class="form-input" v-model="review.kyc_notes" placeholder="Motivo, observações..."></div>
+        </div>
+        <div class="action-row mb-4">
+          <button class="btn btn-sm btn-primary" :disabled="selected.kyc_status==='approved'" @click="approveKyc(true)">✅ Aprovar KYC</button>
+          <button class="btn btn-sm btn-danger-soft" :disabled="selected.kyc_status==='rejected'" @click="approveKyc(false)">✕ Rejeitar KYC</button>
+        </div>
+
+        <div class="form-section">📋 CRC</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Estado CRC</label>
+            <select class="form-select" v-model="review.crc_status">
+              <option value="nao_consta">Não consta</option>
+              <option value="consta">Consta</option>
+              <option value="em_verificacao">Em verificação</option>
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">Comentário CRC</label><input class="form-input" v-model="review.crc_comment" placeholder="Observações do CRC"></div>
+        </div>
+        <button class="btn btn-sm btn-primary" @click="saveCrc">💾 Guardar CRC</button>
+      </div>
+      <div v-if="modal==='docs'">
+        <table class="modern-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Estado</th><th></th></tr></thead><tbody><tr v-for="d in selected.Documents" :key="d.id"><td>{{ d.type }}</td><td>{{ d.original_name }}</td><td><StatusBadge :status="d.status" /></td><td><div class="action-row"><button class="btn btn-sm" @click="downloadDoc(d)">Baixar</button><button class="btn btn-sm btn-primary" :disabled="d.status==='approved'" @click="reviewDoc(d,'approved')">Aprovar</button><button class="btn btn-sm btn-danger-soft" :disabled="d.status==='rejected'" @click="reviewDoc(d,'rejected')">Rejeitar</button></div></td></tr>
+          <tr v-if="!selected.Documents?.length"><td colspan="4" class="empty-state">Ainda não há documentos carregados.</td></tr>
+        </tbody></table>
+        <div class="form-section" style="margin-top:14px">📎 Carregar novo documento</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tipo</label>
+            <select class="form-select" v-model="uploadType">
+              <option value="bi">BI / Passaporte</option>
+              <option value="nuit">NUIT</option>
+              <option value="residence_certificate">Atestado de residência</option>
+              <option value="bank_statement">Extracto bancário</option>
+              <option value="income_proof">Comprovativo de rendimento</option>
+              <option value="business_photo">Foto do negócio</option>
+              <option value="other">Outro</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ficheiro</label>
+            <input class="form-input" type="file" accept=".pdf,.jpg,.jpeg,.png" @change="onUploadDoc">
+          </div>
+        </div>
+      </div>
     </div></div>
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'; import { useRouter, useRoute } from 'vue-router'; import { useToast } from 'vue-toastification'; import api,{downloadDocument} from '@/services/api'; import StatusBadge from '@/components/common/StatusBadge.vue'
+import { ref, computed, onMounted } from 'vue'; import { useRouter, useRoute } from 'vue-router'; import { useToast } from 'vue-toastification'; import api,{downloadDocument,uploadDocument} from '@/services/api'; import StatusBadge from '@/components/common/StatusBadge.vue'
 const router=useRouter(), route=useRoute(), toast=useToast(); const clients=ref([]), q=ref(''), modal=ref(null), selected=ref(null);
+const review=ref({kyc_notes:'', crc_status:'em_verificacao', crc_comment:''}); const uploadType=ref('bi');
 const base=computed(()=>route.path.startsWith('/super')?'/super':'/institution');
 const filtered=computed(()=>clients.value.filter(c=>[c.User?.full_name,c.User?.email,c.User?.phone,c.nuit].join(' ').toLowerCase().includes(q.value.toLowerCase()))); const complete=computed(()=>clients.value.filter(c=>c.kyc_status==='approved').length); const blockedKyc=computed(()=>clients.value.filter(c=>['incomplete','rejected'].includes(c.kyc_status)).length); const blockedUsers=computed(()=>clients.value.filter(c=>c.User?.status==='blocked').length); const title=computed(()=>modal.value==='docs'?'Documentos':'Cliente');
 const mzn=v=>Number(v||0).toLocaleString('pt-MZ',{style:'currency',currency:'MZN',maximumFractionDigits:0}); const crcLabel=v=>({nao_consta:'Não consta',consta:'Consta',em_verificacao:'Em verificação'}[v]||'Em verificação');
 async function load(){try{const {data}=await api.get('/clients',{params:{search:q.value,limit:100000}}); clients.value=data.data||[]}catch(e){toast.error(e.response?.data?.message||'Erro ao carregar clientes')}}
-function closeModal(){modal.value=null; selected.value=null} function openCreate(){router.push(`${base.value}/register-client`)} function editClient(c){router.push(`${base.value}/edit-client/${c.id}`)} function viewClient(c){selected.value=c; modal.value='view'} function viewDocs(c){selected.value=c; modal.value='docs'}
+function closeModal(){modal.value=null; selected.value=null} function openCreate(){router.push(`${base.value}/register-client`)} function editClient(c){router.push(`${base.value}/edit-client/${c.id}`)}
+function viewClient(c){selected.value=c; review.value={kyc_notes:c.kyc_notes||'', crc_status:c.crc_status||'em_verificacao', crc_comment:c.crc_comment||''}; modal.value='view'}
+function viewDocs(c){selected.value=c; modal.value='docs'}
 async function toggleBlock(c){try{await api.post(`/clients/${c.id}/block`,{blocked:c.User?.status!=='blocked'}); toast.success('Estado do cliente actualizado'); await load()}catch(e){toast.error(e.response?.data?.message||'Erro ao bloquear/desbloquear')}}
 async function reviewDoc(d,status){try{await api.patch(`/documents/${d.id}/review`,{status}); toast.success('Documento actualizado: '+status); const idx=selected.value.Documents.findIndex(x=>x.id===d.id); if(idx>=0) selected.value.Documents[idx].status=status; await load()}catch(e){toast.error(e.response?.data?.message||'Erro ao rever documento')}}
+async function approveKyc(approved){
+  try{
+    await api.post(`/clients/${selected.value.id}/approve-kyc`,{approved, notes:review.value.kyc_notes})
+    selected.value.kyc_status = approved ? 'approved' : 'rejected'
+    toast.success(approved ? 'KYC aprovado' : 'KYC rejeitado')
+    await load()
+  }catch(e){toast.error(e.response?.data?.message||'Erro ao rever KYC')}
+}
+async function saveCrc(){
+  try{
+    await api.patch(`/clients/${selected.value.id}`,{crc_status:review.value.crc_status, crc_comment:review.value.crc_comment})
+    toast.success('CRC actualizado')
+    await load()
+  }catch(e){toast.error(e.response?.data?.message||'Erro ao gravar CRC')}
+}
+async function onUploadDoc(e){
+  const file=e.target.files?.[0]; if(!file) return
+  try{
+    await uploadDocument(file, uploadType.value, selected.value.id)
+    toast.success('Documento carregado')
+    const {data}=await api.get(`/clients/${selected.value.id}`)
+    selected.value.Documents = data.data.Documents || []
+    await load()
+  }catch(err){toast.error(err.response?.data?.message||'Erro ao carregar documento')}
+}
 function createLoan(c){router.push(`${base.value}/applications?client_id=`+c.id+'&new=1')} async function downloadDoc(d){try{await downloadDocument(d.id,d.original_name)}catch(e){toast.error('Erro ao baixar documento')}} function exportCsv(){const rows=[['Nome','Email','Telefone','NUIT','KYC','CRC'],...clients.value.map(c=>[c.User?.full_name,c.User?.email,c.User?.phone,c.nuit,c.kyc_status,c.crc_status])]; const blob=new Blob([rows.map(r=>r.join(';')).join('\n')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='clientes.csv'; a.click(); URL.revokeObjectURL(a.href)} onMounted(load)
 </script>

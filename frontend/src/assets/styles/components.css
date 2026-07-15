@@ -160,10 +160,11 @@
 .modern-hero p{opacity:.7;font-size:13px;position:relative;z-index:1}
 .hero-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;position:relative;z-index:1}
 .modern-card{background:var(--mk-surface);border:1px solid var(--mk-border);border-radius:var(--mk-r);padding:18px;margin-bottom:16px;box-shadow:var(--mk-shadow-xs)}
+.modern-card:has(table){overflow-x:auto}
 .modern-card h2{font-size:15px;font-weight:700;margin-bottom:4px;color:var(--erp-navy)}
 .muted{color:var(--mk-text-3);font-size:12px}
 .modern-grid-2{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}
-.modern-table{width:100%;border-collapse:separate;border-spacing:0 5px}
+.modern-table{width:100%;min-width:680px;border-collapse:separate;border-spacing:0 5px}
 .modern-table th{text-align:left;font-size:10.5px;color:var(--mk-text-3);font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:0 12px}
 .modern-table td{background:var(--mk-surface);padding:11px 12px;font-size:12.5px;color:var(--mk-text);border-top:1px solid var(--mk-border);border-bottom:1px solid var(--mk-border)}
 .modern-table td:first-child{border-left:1px solid var(--mk-border);border-radius:var(--mk-r) 0 0 var(--mk-r)}
