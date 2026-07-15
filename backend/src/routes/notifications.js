@@ -76,8 +76,12 @@ router.get('/templates', authenticate, async (req, res, next) => {
     const where = {};
     if (channel) where.channel = channel;
     if (key) where.key = key;
-    if (institution_id) where.institution_id = institution_id;
-    else if (req.user.role !== 'super_admin') where.institution_id = req.user.institution_id;
+    if (institution_id) {
+      where.institution_id = institution_id;
+    } else if (req.user.role !== 'super_admin') {
+      // Vê os templates globais (institution_id nulo) e os da própria instituição.
+      where.institution_id = { [Op.or]: [req.user.institution_id, null] };
+    }
 
     const templates = await NotificationTemplate.findAll({ where, order: [['key', 'ASC'], ['channel', 'ASC']] });
     res.json({ success: true, data: templates });
@@ -139,7 +143,7 @@ router.delete('/templates/:id',
 router.get('/rules', authenticate, async (req, res, next) => {
   try {
     const where = {};
-    if (req.user.role !== 'super_admin') where.institution_id = req.user.institution_id;
+    if (req.user.role !== 'super_admin') where.institution_id = { [Op.or]: [req.user.institution_id, null] };
     const rules = await NotificationRule.findAll({ where, order: [['event', 'ASC']] });
     res.json({ success: true, data: rules });
   } catch (err) { next(err); }

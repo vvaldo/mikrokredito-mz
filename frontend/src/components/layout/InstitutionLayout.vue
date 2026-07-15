@@ -32,6 +32,7 @@ const I = {
   tag:   `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1H13V6L6 13L1 8L8 1z"/></svg>`,
   cog:   `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="7" cy="7" r="2"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2"/></svg>`,
   chat:  `<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1 2h12v7H4l-3 3V2z"/></svg>`,
+  shield:`<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M7 1L2 3v4c0 3 2.5 5 5 6 2.5-1 5-3 5-6V3L7 1z"/></svg>`,
 }
 
 const menuItems = computed(() => [
@@ -49,6 +50,7 @@ const menuItems = computed(() => [
   { tab:'whatsapp',     label:'WhatsApp',          icon:I.chat,  to:'/institution/whatsapp' },
   { sep:true, _key:'s3' },
   { tab:'notifications',label:'Notificações',      icon:I.bell,  to:'/institution/notifications', count: notifStore.unreadCount || undefined },
+  { tab:'audit',        label:'Auditoria',         icon:I.shield,to:'/institution/audit' },
   { tab:'reports',      label:'Relatórios',        icon:I.chart, to:'/institution/reports' },
   { tab:'profile',      label:'Meu Perfil',        icon:I.user,  to:'/institution/profile' },
 ])

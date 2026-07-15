@@ -52,6 +52,7 @@ export const useAuthStore = defineStore('auth', {
     },
 
     logout() {
+      if (this.token) api.post('/auth/logout').catch(() => {}) // regista o evento; não bloqueia o logout local
       this.user = null
       this.token = null
       localStorage.removeItem('token')

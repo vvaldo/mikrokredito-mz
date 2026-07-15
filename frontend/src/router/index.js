@@ -67,6 +67,7 @@ const routes = [
       { path: 'simulator',      component: () => import('@/views/institution/SimulatorView.vue') },
       { path: 'compare',        component: () => import('@/views/client/CompareView.vue') },
       { path: 'notifications',  component: () => import('@/views/institution/NotificationsView.vue') },
+      { path: 'audit',          component: () => import('@/views/super/AuditView.vue') },
       { path: 'reports',        component: () => import('@/views/institution/ReportsView.vue') },
       { path: 'profile',        component: () => import('@/views/common/ProfileView.vue') },
     ],

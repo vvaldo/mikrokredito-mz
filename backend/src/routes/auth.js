@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const { v4: uuidv4 } = require('uuid');
-const { User, Client, Institution } = require('../models');
+const { User, Client, Institution, AuditLog } = require('../models');
 const { authenticate } = require('../middleware/auth');
 const { triggerEvent } = require('../services/notification/notificationService');
 
@@ -159,6 +159,19 @@ router.post('/login',
       await user.update({ last_login: new Date() });
       const token = signToken(user);
 
+      AuditLog.create({
+        institution_id: user.institution_id,
+        user_id: user.id,
+        user_name: user.full_name,
+        user_role: user.role,
+        action: 'login',
+        entity: 'auth',
+        entity_id: user.id,
+        ip_address: req.ip,
+        user_agent: req.headers['user-agent'],
+        description: `${user.full_name} [${user.role}] iniciou sessão`,
+      }).catch(() => {});
+
       res.json({
         success: true,
         token,
@@ -168,6 +181,25 @@ router.post('/login',
     } catch (err) { next(err); }
   }
 );
+
+// POST /auth/logout — regista o evento; o token é sempre stateless e é apenas descartado no browser.
+router.post('/logout', authenticate, async (req, res, next) => {
+  try {
+    await AuditLog.create({
+      institution_id: req.user.institution_id,
+      user_id: req.user.id,
+      user_name: req.user.full_name,
+      user_role: req.user.role,
+      action: 'logout',
+      entity: 'auth',
+      entity_id: req.user.id,
+      ip_address: req.ip,
+      user_agent: req.headers['user-agent'],
+      description: `${req.user.full_name} [${req.user.role}] terminou sessão`,
+    });
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
 
 // GET /auth/me
 router.get('/me', authenticate, async (req, res, next) => {
