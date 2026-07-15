@@ -208,17 +208,23 @@
       <!-- ── STEP 4: Acesso + Documentos ── -->
       <div v-if="step===4" class="card mb-4 anim-fade">
         <div class="form-section">🔐 Dados de acesso</div>
+
+        <div v-if="!isEdit" class="form-group" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <label class="toggle"><input type="checkbox" v-model="noAccount" /><span class="toggle-track"></span></label>
+          <span style="font-size:12px;color:var(--text-1)">Cliente não quer criar conta de acesso agora (sem email nem palavra-passe)</span>
+        </div>
+
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Email <span class="req">*</span></label>
-            <input class="form-input" type="email" v-model="f.email" required placeholder="o_seu@email.com" />
+            <label class="form-label">Email <span v-if="!noAccount" class="req">*</span></label>
+            <input class="form-input" type="email" v-model="f.email" :required="!noAccount" placeholder="o_seu@email.com" />
           </div>
           <div class="form-group">
             <label class="form-label">Telefone <span class="req">*</span></label>
             <input class="form-input" v-model="f.phone" required placeholder="+258 84 000 0000" />
           </div>
         </div>
-        <div v-if="!isEdit" class="form-row">
+        <div v-if="!isEdit && !noAccount" class="form-row">
           <div class="form-group">
             <label class="form-label">Palavra-passe <span class="req">*</span></label>
             <div class="search-wrap">
@@ -303,6 +309,7 @@ const error   = ref('')
 const showPwd = ref(false), showPwd2 = ref(false)
 const currentDocType = ref('')
 const uploadedDocs  = ref({})
+const noAccount = ref(false)
 
 const steps = ['Dados pessoais', 'Documentos e morada', 'Actividade económica', 'Acesso e documentos']
 
@@ -316,7 +323,11 @@ const f = ref({
   email:'', phone:'', password:'', password_confirm:'',
 })
 
-const pwdMismatch = computed(() => !isEdit.value && f.value.password_confirm && f.value.password !== f.value.password_confirm)
+const pwdMismatch = computed(() => !isEdit.value && !noAccount.value && f.value.password_confirm && f.value.password !== f.value.password_confirm)
+
+function randomToken(len = 10) {
+  return Array.from({ length: len }, () => Math.random().toString(36).charAt(2) || '0').join('')
+}
 
 const provinces = ['Cabo Delgado','Gaza','Inhambane','Manica','Maputo Cidade','Maputo Província','Nampula','Niassa','Sofala','Tete','Zambézia']
 const districts = {
@@ -356,7 +367,13 @@ async function submit() {
       }
       toast.success('✅ Cliente actualizado com sucesso')
     } else {
-      const { data } = await api.post('/auth/register', { ...f.value })
+      const payload = { ...f.value }
+      if (noAccount.value) {
+        payload.email = payload.email?.trim() || `sem-conta-${randomToken(8)}@semconta.mikrokredito.local`
+        payload.password = randomToken(12)
+        payload.password_confirm = payload.password
+      }
+      const { data } = await api.post('/auth/register', payload)
       const clientId = data.data?.client?.id
       // Upload docs if provided
       if (clientId) {
