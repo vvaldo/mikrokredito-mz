@@ -456,6 +456,13 @@ router.post('/:id/disburse',
         return res.status(400).json({ success: false, message: 'Apenas pedidos aprovados podem ser desembolsados' });
       }
 
+      // Permite indicar uma data de desembolso anterior a hoje (ex.: desembolsos feitos
+      // antes do lançamento do sistema e agora registados retroactivamente).
+      const disbursedAt = req.body.disbursed_at ? new Date(req.body.disbursed_at) : new Date();
+      if (isNaN(disbursedAt.getTime())) {
+        return res.status(400).json({ success: false, message: 'Data de desembolso inválida' });
+      }
+
       const principal = parseFloat(app.approved_amount || app.requested_amount);
       const calc = calculateLoan({ principal, monthlyRate: parseFloat(app.interest_rate), termMonths: app.term_months });
       const totalRepayable = parseFloat(app.total_repayable || calc.total_repayable || principal);
@@ -469,12 +476,12 @@ router.post('/:id/disburse',
         interest_rate: app.interest_rate,
         term_months: app.term_months,
         installments_total: app.term_months,
-        disbursed_at: new Date(),
-        next_due_date: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
-        maturity_date: new Date(Date.now() + app.term_months * 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        disbursed_at: disbursedAt,
+        next_due_date: new Date(disbursedAt.getTime() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        maturity_date: new Date(disbursedAt.getTime() + app.term_months * 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
       });
 
-      await app.update({ status: 'disbursed', disbursed_at: new Date() });
+      await app.update({ status: 'disbursed', disbursed_at: disbursedAt });
       const schedule = await generateSchedule(loan, loan.disbursed_at);
       await updateApplicationStatus(app.id, 'disbursed', req.user.id);
 

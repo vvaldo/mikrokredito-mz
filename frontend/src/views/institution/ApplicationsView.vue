@@ -20,7 +20,8 @@
     <div class="modern-card">
       <h2>Lista de pedidos</h2>
       <p v-if="loading" class="muted">A carregar pedidos...</p>
-      <table v-else class="modern-table">
+      <div v-else class="table-wrap">
+      <table class="modern-table">
         <thead><tr><th>Ref.</th><th>Cliente</th><th>Produto</th><th>Valor desembolsado</th><th>Total com juros</th><th>Docs</th><th>Status</th><th>Acções</th></tr></thead>
         <tbody>
           <tr v-if="items.length===0"><td colspan="8" class="muted">Sem pedidos submetidos.</td></tr>
@@ -42,13 +43,20 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="close">
       <div class="mk-modal wide">
         <div class="mk-modal-head"><h2>{{ modalTitle }}</h2><button class="modal-x" @click="close">×</button></div>
         <div v-if="modal==='view' && selected">
-          <div class="detail-grid">
+          <div class="notif-tabs">
+            <button class="notif-tab" :class="{active:viewTab==='details'}" @click="viewTab='details'">Detalhes</button>
+            <button class="notif-tab" :class="{active:viewTab==='docs'}" @click="viewTab='docs'">Documentos <span class="tab-count">{{ (selected.Documents||[]).length }}</span></button>
+            <button class="notif-tab" :class="{active:viewTab==='schedule'}" @click="viewTab='schedule'">Prestações <span class="tab-count">{{ paymentSchedules(selected).length }}</span></button>
+          </div>
+
+          <div v-if="viewTab==='details'" class="detail-grid">
             <div><span class="muted">Ref.</span><strong>{{ selected.reference }}</strong></div>
             <div><span class="muted">Cliente</span><strong>{{ selected.Client?.User?.full_name || '—' }}</strong></div>
             <div><span class="muted">Valor emprestado</span><strong>{{ mzn(selected.approved_amount || selected.requested_amount) }}</strong></div>
@@ -59,12 +67,18 @@
             <div><span class="muted">Aprovado em</span><strong>{{ selected.reviewed_at ? date(selected.reviewed_at) : '—' }}</strong></div>
             <div><span class="muted">ID funcionário</span><strong class="small-id">{{ selected.reviewed_by || '—' }}</strong></div>
           </div>
-          <h3 style="margin-top:16px">Documentos submetidos</h3>
-          <div v-if="(selected.Documents||[]).length===0" class="muted">Sem documentos submetidos.</div>
-          <div v-for="d in selected.Documents" :key="d.id" class="doc-row"><div><strong>{{ docLabel(d.type) }}</strong><p class="muted">{{ d.original_name || d.file_name }} · {{ d.status }}</p></div><button class="btn" @click="downloadDoc(d)">Baixar</button></div>
-          <h3 style="margin-top:16px">Lista de prestações</h3>
-          <div v-if="!paymentSchedules(selected).length" class="muted">A lista de prestações será criada após o desembolso.</div>
-          <table v-else class="modern-table"><thead><tr><th>#</th><th>Vencimento</th><th>Capital</th><th>Juro</th><th>Total</th><th>Estado</th></tr></thead><tbody><tr v-for="p in paymentSchedules(selected)" :key="p.id"><td>{{ p.installment_number }}</td><td>{{ date(p.due_date) }}</td><td>{{ mzn(p.principal_amount) }}</td><td>{{ mzn(p.interest_amount) }}</td><td>{{ mzn(p.total_due) }}</td><td>{{ p.status }}</td></tr></tbody></table>
+
+          <div v-if="viewTab==='docs'">
+            <div v-if="(selected.Documents||[]).length===0" class="muted">Sem documentos submetidos.</div>
+            <div v-for="d in selected.Documents" :key="d.id" class="doc-row"><div><strong>{{ docLabel(d.type) }}</strong><p class="muted">{{ d.original_name || d.file_name }} · {{ d.status }}</p></div><button class="btn" @click="downloadDoc(d)">Baixar</button></div>
+          </div>
+
+          <div v-if="viewTab==='schedule'">
+            <div v-if="!paymentSchedules(selected).length" class="muted">A lista de prestações será criada após o desembolso.</div>
+            <div v-else class="table-wrap">
+              <table class="modern-table"><thead><tr><th>#</th><th>Vencimento</th><th>Capital</th><th>Juro</th><th>Total</th><th>Estado</th></tr></thead><tbody><tr v-for="p in paymentSchedules(selected)" :key="p.id"><td>{{ p.installment_number }}</td><td>{{ date(p.due_date) }}</td><td>{{ mzn(p.principal_amount) }}</td><td>{{ mzn(p.interest_amount) }}</td><td>{{ mzn(p.total_due) }}</td><td>{{ p.status }}</td></tr></tbody></table>
+            </div>
+          </div>
         </div>
         <form v-if="modal==='new'" @submit.prevent="saveNew">
           <div class="form-grid">
@@ -81,6 +95,15 @@
           <textarea v-if="action==='rejected'" class="input" v-model="reason" placeholder="Motivo da desaprovação"></textarea>
           <div class="modal-actions"><button class="btn" @click="close">Cancelar</button><button :class="['btn', action==='approved' ? 'btn-primary' : 'btn-danger-soft']" @click="applyDecision">Confirmar</button></div>
         </div>
+        <div v-if="modal==='disburse' && selected">
+          <p>Confirma o desembolso do pedido <strong>{{ selected.reference }}</strong> — <strong>{{ mzn(disbursedValue(selected)) }}</strong>?</p>
+          <div class="form-group" style="margin-top:10px">
+            <label class="form-label">Data em que o desembolso foi/será feito</label>
+            <input class="form-input" type="date" v-model="disburseDate" :max="todayStr" required>
+            <p class="form-hint">Pode indicar uma data anterior a hoje se o desembolso já tinha sido feito antes do lançamento do sistema.</p>
+          </div>
+          <div class="modal-actions"><button class="btn" @click="close">Cancelar</button><button class="btn btn-primary" :disabled="!disburseDate" @click="confirmDisburse">Confirmar desembolso</button></div>
+        </div>
       </div>
     </div>
   </div>
@@ -91,10 +114,13 @@ import { useToast } from 'vue-toastification'
 import api, { downloadDocument } from '@/services/api'
 const toast=useToast(); const loading=ref(false); const items=ref([]); const modal=ref(null); const selected=ref(null); const action=ref(null); const reason=ref(''); const clients=ref([]); const products=ref([]); const newForm=ref({client_id:'',product_id:'',requested_amount:null,term_months:12,purpose:''})
 const requiredDocs=['bi','nuit','residence_certificate','bank_statement']
+const viewTab=ref('details')
+const todayStr=new Date().toISOString().slice(0,10)
+const disburseDate=ref(todayStr)
 const pending=computed(()=>items.value.filter(i=>['submitted','under_review','docs_requested'].includes(i.status)).length)
 const rejected=computed(()=>items.value.filter(i=>i.status==='rejected').length)
 const total=computed(()=>items.value.reduce((s,i)=>s+Number(i.requested_amount||0),0))
-const modalTitle=computed(()=>modal.value==='confirm'?'Confirmar decisão':'Detalhe do pedido')
+const modalTitle=computed(()=>modal.value==='confirm'?'Confirmar decisão':modal.value==='disburse'?'Confirmar desembolso':'Detalhe do pedido')
 function mzn(v){return Number(v||0).toLocaleString('pt-MZ',{style:'currency',currency:'MZN',maximumFractionDigits:0})}
 function date(v){return v?new Date(v).toLocaleDateString('pt-MZ'):'—'}
 function statusLabel(s){return {submitted:'Submetido',under_review:'Em análise',docs_requested:'Documentos solicitados',approved:'Aprovado',rejected:'Desaprovado',disbursed:'Desembolsado'}[s]||s}
@@ -108,13 +134,20 @@ function disbursedValue(r){ return Number(r.approved_amount || r.requested_amoun
 function paymentSchedules(r){ return r.Loan?.PaymentSchedules || [] }
 async function load(){loading.value=true; try{const [lo,cl,pr]=await Promise.all([api.get('/loans',{params:{limit:100000}}),api.get('/clients',{params:{limit:100000}}),api.get('/products')]); items.value=lo.data.data||[]; clients.value=cl.data.data||[]; products.value=pr.data.data||[]} finally{loading.value=false}}
 function close(){modal.value=null;selected.value=null;action.value=null;reason.value=''}
-async function openView(r){ try{ const {data}=await api.get('/loans/'+r.id); selected.value=data.data||r }catch(e){ selected.value=r } modal.value='view'}
+async function openView(r){ viewTab.value='details'; try{ const {data}=await api.get('/loans/'+r.id); selected.value=data.data||r }catch(e){ selected.value=r } modal.value='view'}
 function openNew(){newForm.value={client_id:'',product_id:'',requested_amount:null,term_months:12,purpose:''}; modal.value='new'}
 async function saveNew(){try{await api.post('/loans',newForm.value); toast.success('Pedido criado e enviado para notificações do banco/superadmin.'); close(); await load()}catch(e){toast.error(e.response?.data?.message||'Erro ao criar pedido')}}
 function confirmAction(r,a){selected.value=r;action.value=a;modal.value='confirm'}
 async function changeStatus(r,status){try{await api.patch(`/loans/${r.id}`,{status}); toast.success('Estado actualizado para '+statusLabel(status)); await load()}catch(e){toast.error(e.response?.data?.message || 'Erro ao actualizar estado')}}
 async function applyDecision(){ if(action.value==='approved' && docCount(selected.value)<4) return toast.error('Não pode aprovar sem BI, NUIT, atestado e extracto.'); await changeStatus(selected.value, action.value); close() }
-async function disburse(r){try{await api.post(`/loans/${r.id}/disburse`); toast.success('Pedido desembolsado e cliente notificado.'); await load()}catch(e){toast.error(e.response?.data?.message || 'Erro ao desembolsar')}}
+function disburse(r){ selected.value=r; disburseDate.value=todayStr; modal.value='disburse' }
+async function confirmDisburse(){
+  try{
+    await api.post(`/loans/${selected.value.id}/disburse`,{disbursed_at:disburseDate.value})
+    toast.success('Pedido desembolsado e cliente notificado.')
+    close(); await load()
+  }catch(e){toast.error(e.response?.data?.message || 'Erro ao desembolsar')}
+}
 async function downloadDoc(d){ await downloadDocument(d.id, d.original_name || d.file_name || 'documento') }
 function exportCsv(){toast.success('Exportação preparada.');}
 onMounted(load)
