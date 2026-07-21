@@ -37,6 +37,7 @@
 
     <div class="modern-card">
       <h2>Pagamentos recentes</h2><p class="muted">Só os seus pagamentos. Pode visualizar detalhes e baixar o comprovativo anexado.</p>
+      <div class="table-wrap">
       <table class="modern-table">
         <thead><tr><th>Ref.</th><th>Empréstimo</th><th>Valor</th><th>Método</th><th>Data</th><th>Estado</th><th>Comprovativo</th><th>Acções</th></tr></thead>
         <tbody>
@@ -56,6 +57,7 @@
           <tr v-if="!rows.length"><td colspan="8" class="empty-state">Ainda não tem pagamentos registados.</td></tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div v-if="selected" class="modal-backdrop" @click.self="selected=null">

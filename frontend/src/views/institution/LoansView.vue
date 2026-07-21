@@ -18,6 +18,7 @@
 
     <div class="modern-card">
       <h2>Lista de empréstimos</h2>
+      <div class="table-wrap">
       <table class="modern-table">
         <thead>
           <tr><th>Ref.</th><th>Cliente</th><th>Valor</th><th>Juros</th><th>Valor total</th><th>Saldo</th><th>Estado</th><th>Acções</th></tr>
@@ -39,6 +40,7 @@
                   <button class="btn btn-sm btn-danger-soft" @click="notify(l)">Notificar</button>
                   <button class="btn btn-sm" @click="viewLoan(l)">Visualizar</button>
                   <button class="btn btn-sm" @click="downloadStatementPdf(l)">Baixar PDF</button>
+                  <button class="btn btn-sm" @click="editDisbursement(l)">Editar desembolso</button>
                 </div>
               </td>
             </tr>
@@ -53,6 +55,7 @@
                     <div><span>Juros de mora acumulado</span><strong>{{ mzn(lateFees(l)) }}</strong></div>
                   </div>
                   <strong>Todas as prestações</strong>
+                  <div class="table-wrap">
                   <table class="modern-table">
                     <thead><tr><th>Nº</th><th>Vencimento</th><th>Capital</th><th>Juros</th><th>Mora</th><th>Total</th><th>Pago</th><th>Estado</th></tr></thead>
                     <tbody>
@@ -61,6 +64,7 @@
                       </tr>
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </td>
             </tr>
@@ -68,11 +72,24 @@
           <tr v-if="!loans.length"><td colspan="8" class="empty-state">Sem empréstimos activos para apresentar.</td></tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="modal=null">
       <div class="mk-modal wide">
-        <div class="mk-modal-head"><h2>{{ modal==='pay' ? 'Registar pagamento' : 'Detalhe do empréstimo' }}</h2><button class="modal-x" @click="modal=null">×</button></div>
+        <div class="mk-modal-head"><h2>{{ modal==='pay' ? 'Registar pagamento' : modal==='redisburse' ? 'Editar data de desembolso' : 'Detalhe do empréstimo' }}</h2><button class="modal-x" @click="modal=null">×</button></div>
+        <div v-if="modal==='redisburse' && selected">
+          <p>Empréstimo <strong>{{ selected.LoanApplication?.reference || selected.id }}</strong> — {{ selected.LoanApplication?.Client?.User?.full_name }}</p>
+          <div class="form-group" style="margin-top:10px">
+            <label class="form-label">Nova data de desembolso</label>
+            <input class="form-input" type="date" v-model="redisburseDate" :max="todayStr" required>
+            <p class="form-hint">A tabela de prestações é recalculada a partir desta data. Se, com a nova data, alguma prestação já estiver vencida, os juros de mora são recalculados automaticamente.</p>
+          </div>
+          <div v-if="hasPaidInstallments(selected)" class="alert alert-danger" style="margin-top:10px">
+            Este empréstimo já tem prestações pagas — não é possível alterar a data de desembolso sem reverter esses pagamentos primeiro.
+          </div>
+          <div class="modal-actions"><button class="btn" @click="modal=null">Cancelar</button><button class="btn btn-primary" :disabled="!redisburseDate || hasPaidInstallments(selected)" @click="confirmRedisburse">Guardar e recalcular</button></div>
+        </div>
         <div v-if="modal==='view'" class="detail-grid">
           <div><span class="muted">Cliente</span><strong>{{ selected.LoanApplication?.Client?.User?.full_name }}</strong></div>
           <div><span class="muted">Referência</span><strong>{{ selected.LoanApplication?.reference }}</strong></div>
@@ -115,6 +132,8 @@ const opened = ref({})
 const modal = ref(null)
 const selected = ref(null)
 const pay = ref({})
+const todayStr = new Date().toISOString().slice(0,10)
+const redisburseDate = ref(todayStr)
 const applicationsPath = computed(() => route.path.startsWith('/super') ? '/super/applications?new=1' : '/institution/applications?new=1')
 
 const mzn = v => Number(v || 0).toLocaleString('pt-MZ', { style:'currency', currency:'MZN', maximumFractionDigits:0 })
@@ -137,6 +156,15 @@ function viewLoan(l){ selected.value=l; modal.value='view' }
 function openPay(l){ selected.value=l; pay.value={loan_id:l.id, method:'bank_transfer', amount:null, external_reference:'', phone_number:'', receipt:null}; modal.value='pay' }
 async function savePay(){ try{ const fd=new FormData(); for(const k of ['loan_id','amount','method','external_reference','phone_number']) fd.append(k,pay.value[k]||''); fd.append('receipt',pay.value.receipt); await api.post('/payments/manual',fd,{headers:{'Content-Type':'multipart/form-data'}}); toast.success('Pagamento registado e reflectido na conta do cliente'); modal.value=null; await load() }catch(e){ toast.error(e.response?.data?.message||'Erro ao registar pagamento') } }
 async function notify(l){ try{ await api.post(`/loans/${l.id}/notify-payment`); toast.success('Email de cobrança enviado ao cliente e registado em logs') }catch(e){ toast.error(e.response?.data?.message||'Erro ao enviar email de notificação') } }
+function hasPaidInstallments(l){ return (l?.PaymentSchedules||[]).some(p => ['paid','partial'].includes(p.status)) }
+function editDisbursement(l){ selected.value=l; redisburseDate.value=(l.disbursed_at||todayStr).slice(0,10); modal.value='redisburse' }
+async function confirmRedisburse(){
+  try{
+    await api.patch(`/loans/${selected.value.id}/disbursement`,{disbursed_at:redisburseDate.value})
+    toast.success('Data de desembolso actualizada e prestações recalculadas')
+    modal.value=null; await load()
+  }catch(e){ toast.error(e.response?.data?.message || 'Erro ao actualizar desembolso') }
+}
 function downloadStatementPdf(l){ const rows=(l.PaymentSchedules||[]).map(p=>`<tr><td>${p.installment_number}</td><td>${date(p.due_date)}</td><td>${mzn(p.principal_due)}</td><td>${mzn(p.interest_due)}</td><td>${mzn(p.late_fee)}</td><td>${mzn(Number(p.total_due||0)+Number(p.late_fee||0))}</td><td>${mzn(p.total_paid)}</td><td>${statusLabel(p.status)}</td></tr>`).join(''); const html=`<html><head><title>Pagamentos ${l.LoanApplication?.reference||''}</title><style>body{font-family:Arial;padding:24px;color:#111827}h1{font-size:20px}table{width:100%;border-collapse:collapse;margin-top:12px}td,th{border:1px solid #ddd;padding:7px;font-size:12px}.totals{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:16px 0}.totals div{border:1px solid #ddd;padding:10px}.brand{font-size:11px;color:#6b7280;margin-top:24px}</style></head><body><h1>Mapa de Pagamentos - ${l.LoanApplication?.reference||''}</h1><p><strong>Cliente:</strong> ${l.LoanApplication?.Client?.User?.full_name||'Cliente'}</p><div class="totals"><div>Total por pagar: <strong>${mzn(repayableAmount(l))}</strong></div><div>Total Pago: <strong>${mzn(totalPaid(l))}</strong></div><div>Saldo em dívida: <strong>${mzn(balanceAmount(l))}</strong></div><div>Prazo: <strong>${termMonths(l)} meses</strong></div><div>Juros de moras acumulado: <strong>${mzn(lateFees(l))}</strong></div><div>Estado: <strong>${statusLabel(displayStatus(l))}</strong></div></div><table><thead><tr><th>Nº</th><th>Vencimento</th><th>Capital</th><th>Juros</th><th>Mora</th><th>Total</th><th>Pago</th><th>Estado</th></tr></thead><tbody>${rows || '<tr><td colspan="8">Sem prestações geradas.</td></tr>'}</tbody></table><div class="brand">MicroCredit SYSTEM — Powered by OTECH</div></body></html>`; const win=window.open('','_blank'); win.document.write(html); win.document.close(); win.focus(); win.print() }
 onMounted(load)
 </script>

@@ -8,6 +8,7 @@
 
     <div class="modern-card">
       <div class="form-row" style="margin-bottom:12px"><input class="form-input" v-model="q" placeholder="Pesquisar instituição, email, telefone" @input="filter"></div>
+      <div class="table-wrap">
       <table class="modern-table"><thead><tr><th>Instituição</th><th>Contacto</th><th>Endereço</th><th>Estado</th><th>Acções</th></tr></thead><tbody>
         <tr v-for="i in filtered" :key="i.id">
           <td><strong>{{ i.name }}</strong><br><span class="muted">{{ i.acronym }} · Licença {{ i.license_number || '—' }}</span></td>
@@ -18,6 +19,7 @@
         </tr>
         <tr v-if="!filtered.length"><td colspan="5" class="empty-state">Sem instituições.</td></tr>
       </tbody></table>
+      </div>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="modal=false">

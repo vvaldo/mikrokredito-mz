@@ -41,6 +41,7 @@
             <option value="whatsapp">WhatsApp</option>
           </select>
         </div>
+        <div class="table-wrap">
         <table class="modern-table">
           <thead><tr><th>Data</th><th>Canal</th><th>Evento</th><th>Destinatário</th><th>Tentativas</th><th>Estado</th><th></th></tr></thead>
           <tbody>
@@ -65,6 +66,7 @@
             <tr v-if="!filteredLogs.length"><td colspan="7" style="text-align:center;padding:28px;color:var(--mk-text-2)">Sem registos encontrados.</td></tr>
           </tbody>
         </table>
+        </div>
       </div>
     </template>
 
@@ -87,6 +89,7 @@
           <span style="font-size:12px;color:var(--mk-text-2)">{{ templates.length }} templates</span>
           <button class="btn btn-primary btn-sm" @click="openTmpl()">+ Novo template</button>
         </div>
+        <div class="table-wrap">
         <table class="modern-table">
           <thead><tr><th>Evento</th><th>Canal</th><th>Assunto</th><th>Pré-visualização</th><th></th></tr></thead>
           <tbody>
@@ -104,6 +107,7 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
     </template>
 
@@ -111,6 +115,7 @@
     <template v-else-if="activeTab==='rules'">
       <div class="modern-card">
         <p class="muted" style="margin-bottom:14px">Configure quais eventos enviam notificações e por que canal. Gravado na base de dados.</p>
+        <div class="table-wrap">
         <table class="modern-table">
           <thead><tr><th>Evento</th><th>Email</th><th>SMS</th><th>WhatsApp</th><th>Activo</th></tr></thead>
           <tbody>
@@ -123,6 +128,7 @@
             </tr>
           </tbody>
         </table>
+        </div>
         <button class="btn btn-primary" style="margin-top:14px" :disabled="savingRules" @click="saveRules">{{ savingRules ? 'A gravar...' : 'Guardar regras' }}</button>
       </div>
     </template>

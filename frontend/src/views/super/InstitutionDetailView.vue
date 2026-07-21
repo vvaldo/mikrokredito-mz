@@ -35,9 +35,11 @@
     </div>
     <div class="modern-card">
       <h2>Registos recentes</h2><p class="muted">Botões de visualizar, editar, aprovar, ver status e documentos activados com feedback.</p>
+      <div class="table-wrap">
       <table class="modern-table"><thead><tr><th>Ref.</th><th>Cliente</th><th>Instituição</th><th>Valor</th><th>Docs</th><th>Status</th><th>Acções</th></tr></thead>
         <tbody><tr v-for="r in rows" :key="r.id"><td><strong>{{ r.id }}</strong></td><td>{{ r.name }}<br><span class="muted">{{ r.date }}</span></td><td>{{ r.institution }}</td><td>{{ mzn(r.amount) }}</td><td>{{ r.docs }}</td><td><span :class="statusClass(r.status)">{{ r.status }}</span></td><td><div class="action-row"><button class="btn btn-sm" @click="act('Visualizar', r)">Visualizar</button><button class="btn btn-sm btn-blue-soft" @click="act('Editar', r)">Editar</button><button class="btn btn-sm btn-primary" @click="act('Aprovar', r)">Aprovar</button><button class="btn btn-sm" @click="act('Ver status', r)">Status</button><button class="btn btn-sm" @click="act('Ver documento', r)">Documento</button><button class="btn btn-sm btn-danger-soft" @click="remove(r)">Apagar</button></div></td></tr></tbody>
       </table>
+      </div>
     </div>
   </div>
 </template>

@@ -6,6 +6,7 @@
       <div class="hero-actions">
         <button class="btn btn-primary" :disabled="saving" @click="saveProfile">{{ saving ? 'A gravar...' : 'Gravar alterações' }}</button>
         <button class="btn" :disabled="sendingToken" @click="requestToken('email')">Enviar token por email</button>
+        <button class="btn" :disabled="downloadingPdf" @click="downloadMyProfile">{{ downloadingPdf ? 'A preparar...' : '📄 Baixar meus dados em PDF' }}</button>
       </div>
     </section>
 
@@ -143,8 +144,10 @@
 import { computed, onMounted, ref } from 'vue'
 import { useToast } from 'vue-toastification'
 import api, { uploadDocument, downloadDocument } from '@/services/api'
+import { useBrandingStore } from '@/stores/branding'
 const toast = useToast()
-const loading = ref(true), saving = ref(false), sendingToken = ref(false), resetting = ref(false)
+const brand = useBrandingStore()
+const loading = ref(true), saving = ref(false), sendingToken = ref(false), resetting = ref(false), downloadingPdf = ref(false)
 const profile = ref(null)
 const docs = ref([])
 const form = ref({
@@ -220,6 +223,75 @@ function onPhoto(e){
   reader.onload = ev => { form.value.photo_url = ev.target.result }
   reader.readAsDataURL(file)
 }
+const mzn = v => Number(v||0).toLocaleString('pt-MZ',{style:'currency',currency:'MZN',maximumFractionDigits:0})
+const loanStatusLabel = s => ({draft:'Rascunho',submitted:'Submetido',under_review:'Em análise',docs_requested:'Documentos solicitados',approved:'Aprovado',rejected:'Rejeitado',disbursed:'Desembolsado',cancelled:'Cancelado'}[s]||s)
+const docLabel = t => checklist.value.find(x=>x.type===t)?.label || t
+
+async function downloadMyProfile() {
+  downloadingPdf.value = true
+  try {
+    const c = profile.value
+    if (!c) return
+    let loans = []
+    try { const { data } = await api.get('/loans', { params: { limit: 200 } }); loans = data.data || [] } catch(e) {}
+
+    const w = window.open('', '_blank')
+    const logo = brand.logoUrl ? `<img src="${brand.logoUrl}" style="height:40px;object-fit:contain">` : ''
+    const loanRows = loans.map(l => `
+      <tr>
+        <td>${l.reference || l.id?.slice(0,8)}</td>
+        <td>${mzn(l.requested_amount)}</td>
+        <td>${l.CreditProduct?.name || '—'}</td>
+        <td>${loanStatusLabel(l.status)}</td>
+        <td>${date(l.created_at)}</td>
+      </tr>`).join('')
+
+    w.document.write(`<!DOCTYPE html><html><head><title>Meu perfil — ${form.value.full_name}</title>
+    <style>
+      body{font-family:Arial,sans-serif;font-size:12px;padding:28px;color:#1a202c;max-width:800px;margin:0 auto}
+      h1{font-size:20px;font-weight:700;margin:12px 0 4px} h2{font-size:14px;font-weight:600;color:#185FA5;margin:20px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+      .header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #185FA5;padding-bottom:12px;margin-bottom:16px}
+      .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+      .field{padding:8px;background:#f8fafc;border-radius:4px}
+      .field label{display:block;font-size:10px;color:#718096;text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+      .field strong{font-size:12px;font-weight:600}
+      table{width:100%;border-collapse:collapse;margin-top:8px;font-size:11px}
+      th{background:#185FA5;color:#fff;padding:6px 8px;text-align:left}
+      td{padding:5px 8px;border-bottom:1px solid #e2e8f0}
+      .footer{margin-top:28px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:10px;color:#718096;display:flex;justify-content:space-between}
+      @media print{button{display:none}}
+    </style></head><body>
+    <div class="header">
+      <div>${logo}<h1>${form.value.full_name}</h1><p style="color:#718096">${form.value.email} · ${form.value.phone}</p></div>
+      <div style="text-align:right;font-size:11px;color:#718096"><strong>${brand.name}</strong><br>${brand.tagline}<br>Gerado: ${new Date().toLocaleString('pt-MZ')}</div>
+    </div>
+    <h2>Dados Pessoais</h2>
+    <div class="grid">
+      <div class="field"><label>Data de nascimento</label><strong>${date(form.value.date_of_birth)||'—'}</strong></div>
+      <div class="field"><label>Género</label><strong>${form.value.gender==='M'?'Masculino':form.value.gender==='F'?'Feminino':'—'}</strong></div>
+      <div class="field"><label>${form.value.doc_type||'BI'}</label><strong>${form.value.bi_number||'—'}</strong></div>
+      <div class="field"><label>NUIT</label><strong>${form.value.nuit||'—'}</strong></div>
+      <div class="field"><label>Local de nascimento</label><strong>${form.value.birth_place||'—'}</strong></div>
+      <div class="field"><label>Nacionalidade</label><strong>${form.value.nationality||'—'}</strong></div>
+      <div class="field"><label>Província</label><strong>${form.value.province||'—'}</strong></div>
+      <div class="field"><label>Distrito</label><strong>${form.value.district||'—'}</strong></div>
+      <div class="field"><label>Endereço</label><strong>${form.value.address||'—'}</strong></div>
+      <div class="field"><label>Profissão</label><strong>${form.value.activity_type||'—'}</strong></div>
+      <div class="field"><label>Empregador</label><strong>${form.value.employer_name||'—'}</strong></div>
+      <div class="field"><label>Estado KYC</label><strong>${kycLabel.value}</strong></div>
+    </div>
+    <h2>Histórico de Empréstimos (${loans.length})</h2>
+    ${loans.length ? `<table><thead><tr><th>Referência</th><th>Valor</th><th>Produto</th><th>Estado</th><th>Data</th></tr></thead><tbody>${loanRows}</tbody></table>` : '<p style="color:#718096">Sem empréstimos registados.</p>'}
+    <h2>Documentos Submetidos (${docs.value.length})</h2>
+    ${docs.value.map(d=>`<div class="field" style="margin-bottom:4px"><label>${docLabel(d.type)}</label><strong>${d.original_name||d.file_name||'—'} — ${d.status||'pendente'}</strong></div>`).join('') || '<p style="color:#718096">Sem documentos.</p>'}
+    <div class="footer"><span>${brand.poweredBy}</span><span>CONFIDENCIAL — ${brand.name}</span></div>
+    </body></html>`)
+    w.document.close()
+    setTimeout(() => w.print(), 400)
+    toast.success('PDF aberto para impressão/gravação')
+  } finally { downloadingPdf.value = false }
+}
+
 async function upload(type,e){
   const file=e.target.files?.[0]; if(!file) return
   await uploadDocument(file, type, null, null)

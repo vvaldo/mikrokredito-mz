@@ -6,6 +6,7 @@
       <div class="hero-actions"><button class="btn btn-primary" @click="openCreate">+ Novo produto</button><button class="btn" @click="load">Actualizar</button><button class="btn" @click="exportCsv">Exportar CSV</button></div>
     </section>
     <div class="modern-card">
+      <div class="table-wrap">
       <table class="modern-table">
         <thead><tr><th>Produto</th><th>Banco</th><th>Faixa</th><th>Taxa</th><th>Mora</th><th>Prazo</th><th>Estado</th><th>Acções</th></tr></thead>
         <tbody>
@@ -22,6 +23,7 @@
           <tr v-if="!products.length"><td colspan="8" class="empty-state">Sem produtos registados.</td></tr>
         </tbody>
       </table>
+      </div>
     </div>
     <div v-if="modal" class="modal-backdrop" @click.self="modal=false"><div class="mk-modal wide"><div class="mk-modal-head"><h2>{{ isCreate ? 'Novo produto' : 'Editar produto' }}</h2><button class="modal-x" @click="modal=false">×</button></div><form @submit.prevent="save"><div class="form-grid">
       <label v-if="isCreate" class="field"><span>Instituição</span><select class="input" v-model="form.institution_id" required><option value="">Seleccionar</option><option v-for="i in institutions" :key="i.id" :value="i.id">{{ i.name }}</option></select></label>

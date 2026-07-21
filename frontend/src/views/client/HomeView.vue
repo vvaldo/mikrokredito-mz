@@ -18,7 +18,7 @@
         <div class="modern-card">
           <h2>Seus pedidos</h2><p class="muted">Mostra somente pedidos associados ao seu perfil.</p>
           <div v-if="applications.length === 0" class="notice">Ainda não tem pedidos. Use “Novo pedido” para simular e submeter.</div>
-          <table v-else class="modern-table"><thead><tr><th>Ref.</th><th>Produto</th><th>Valor</th><th>Estado</th><th>Acção</th></tr></thead><tbody><tr v-for="r in applications" :key="r.id"><td><strong>{{ r.reference }}</strong></td><td>{{ r.CreditProduct?.name || 'Produto' }}</td><td>{{ mzn(r.requested_amount) }}</td><td><span :class="statusClass(r.status)">{{ statusLabel(r.status, r.Loan) }}</span></td><td><button class="btn btn-sm" @click="openRequest(r)">Visualizar</button></td></tr></tbody></table>
+          <div v-else class="table-wrap"><table class="modern-table"><thead><tr><th>Ref.</th><th>Produto</th><th>Valor</th><th>Estado</th><th>Acção</th></tr></thead><tbody><tr v-for="r in applications" :key="r.id"><td><strong>{{ r.reference }}</strong></td><td>{{ r.CreditProduct?.name || 'Produto' }}</td><td>{{ mzn(r.requested_amount) }}</td><td><span :class="statusClass(r.status)">{{ statusLabel(r.status, r.Loan) }}</span></td><td><button class="btn btn-sm" @click="openRequest(r)">Visualizar</button></td></tr></tbody></table></div>
         </div>
         <div class="modern-card">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><h2>Notificações</h2><p class="muted">A contagem também aparece no ícone superior.</p></div><button class="btn btn-sm" @click="showAllNotifications=!showAllNotifications">{{ showAllNotifications ? 'Ocultar' : 'Expandir' }}</button></div>
@@ -37,7 +37,7 @@
           <button class="btn" @click="showPayments = !showPayments">{{ showPayments ? 'Ocultar' : 'Expandir prestações' }}</button>
         </div>
         <div class="grid-3" style="gap:8px;margin:12px 0"><div class="stat-card"><div class="stat-value">{{ mzn(activeLoan.principal) }}</div><div class="stat-label">Valor aprovado</div></div><div class="stat-card"><div class="stat-value">{{ activeLoan.installments_paid || 0 }}/{{ activeLoan.PaymentSchedules?.length || activeLoan.installments_total || 0 }}</div><div class="stat-label">Pagas</div></div><div class="stat-card"><div class="stat-value">{{ mzn(activeLoan.outstanding_balance) }}</div><div class="stat-label">Saldo por pagar</div></div></div>
-        <table v-if="showPayments" class="modern-table"><thead><tr><th>#</th><th>Vencimento</th><th>Valor</th><th>Pago</th><th>Estado</th></tr></thead><tbody><tr v-for="p in activeLoan.PaymentSchedules" :key="p.id"><td>{{ p.installment_number }}</td><td>{{ date(p.due_date) }}</td><td>{{ mzn(p.total_due) }}</td><td>{{ mzn(p.total_paid) }}</td><td><span :class="paymentClass(p.status)">{{ paymentLabel(p.status) }}</span></td></tr></tbody></table>
+        <div v-if="showPayments" class="table-wrap"><table class="modern-table"><thead><tr><th>#</th><th>Vencimento</th><th>Valor</th><th>Pago</th><th>Estado</th></tr></thead><tbody><tr v-for="p in activeLoan.PaymentSchedules" :key="p.id"><td>{{ p.installment_number }}</td><td>{{ date(p.due_date) }}</td><td>{{ mzn(p.total_due) }}</td><td>{{ mzn(p.total_paid) }}</td><td><span :class="paymentClass(p.status)">{{ paymentLabel(p.status) }}</span></td></tr></tbody></table></div>
       </div>
     </template>
 

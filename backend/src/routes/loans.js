@@ -490,6 +490,51 @@ router.post('/:id/disburse',
   }
 );
 
+// ── Corrigir a data de desembolso de um empréstimo já criado e recalcular a tabela de
+// prestações a partir dessa data (ex.: desembolsos reais feitos antes do lançamento do
+// sistema, agora registados com a data errada). Só permitido se ainda não houver
+// prestações pagas/parciais, para não corromper histórico de pagamentos já reflectido.
+router.patch('/:id/disbursement',
+  authenticate,
+  authorize('inst_admin', 'super_admin'),
+  audit('loan_disbursement_updated'),
+  async (req, res, next) => {
+    try {
+      const loan = await Loan.findByPk(req.params.id);
+      if (!loan) return res.status(404).json({ success: false, message: 'Empréstimo não encontrado' });
+      if (req.user.role === 'inst_admin' && req.user.institution_id !== loan.institution_id) {
+        return res.status(403).json({ success: false, message: 'Sem permissão para este empréstimo' });
+      }
+
+      const disbursedAt = new Date(req.body.disbursed_at);
+      if (isNaN(disbursedAt.getTime())) {
+        return res.status(400).json({ success: false, message: 'Data de desembolso inválida' });
+      }
+
+      const existingSchedules = await PaymentSchedule.findAll({ where: { loan_id: loan.id } });
+      if (existingSchedules.some(s => ['paid', 'partial'].includes(s.status))) {
+        return res.status(400).json({ success: false, message: 'Já existem prestações pagas para este empréstimo — não é possível alterar a data de desembolso.' });
+      }
+
+      await PaymentSchedule.destroy({ where: { loan_id: loan.id } });
+      await loan.update({
+        disbursed_at: disbursedAt,
+        next_due_date: new Date(disbursedAt.getTime() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        maturity_date: new Date(disbursedAt.getTime() + loan.term_months * 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+        days_overdue: 0,
+        status: 'active',
+      });
+      const schedule = await generateSchedule(loan, disbursedAt);
+
+      // Se, com a nova data, alguma prestação já estiver vencida, recalcula os juros de mora imediatamente.
+      const { applyLateFeesForLoan } = require('./payments');
+      const lateFeeTotal = await applyLateFeesForLoan(loan.id);
+
+      await loan.reload({ include: [{ model: PaymentSchedule }] });
+      res.json({ success: true, message: 'Data de desembolso actualizada e prestações recalculadas.', data: { loan, schedule, lateFeeTotal } });
+    } catch (err) { next(err); }
+  }
+);
 
 // ── Direct payment reminder notification for a loan
 router.post('/:id/notify-payment',

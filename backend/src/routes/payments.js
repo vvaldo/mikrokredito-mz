@@ -220,3 +220,4 @@ async function reconcilePayment(tx, actor = null) {
 }
 
 module.exports = router;
+module.exports.applyLateFeesForLoan = applyLateFeesForLoan;

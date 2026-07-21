@@ -33,10 +33,12 @@
 
       <div v-if="expanded[app.id]" class="loan-detail" style="margin-top:12px">
         <h3>Prestações pagas e por pagar</h3>
-        <table v-if="app.Loan?.PaymentSchedules?.length" class="modern-table">
+        <div v-if="app.Loan?.PaymentSchedules?.length" class="table-wrap">
+        <table class="modern-table">
           <thead><tr><th>#</th><th>Data</th><th>Valor</th><th>Pago</th><th>Estado</th></tr></thead>
           <tbody><tr v-for="p in app.Loan.PaymentSchedules" :key="p.id"><td>{{ p.installment_number }}</td><td>{{ date(p.due_date) }}</td><td>{{ mzn(p.total_due) }}</td><td>{{ mzn(p.total_paid) }}</td><td><span :class="paymentClass(p.status)">{{ paymentLabel(p.status) }}</span></td></tr></tbody>
         </table>
+        </div>
         <p v-else class="muted">Ainda não há prestações porque o pedido ainda não foi desembolsado.</p>
       </div>
     </div>
@@ -62,10 +64,12 @@
         </div>
 
         <h3 style="margin-top:16px">Prestações</h3>
-        <table v-if="selected.Loan?.PaymentSchedules?.length" class="modern-table">
+        <div v-if="selected.Loan?.PaymentSchedules?.length" class="table-wrap">
+        <table class="modern-table">
           <thead><tr><th>#</th><th>Vencimento</th><th>Valor</th><th>Pago</th><th>Estado</th></tr></thead>
           <tbody><tr v-for="p in selected.Loan.PaymentSchedules" :key="p.id"><td>{{ p.installment_number }}</td><td>{{ date(p.due_date) }}</td><td>{{ mzn(p.total_due) }}</td><td>{{ mzn(p.total_paid) }}</td><td>{{ paymentLabel(p.status) }}</td></tr></tbody>
         </table>
+        </div>
         <p v-else class="muted">Ainda não existe plano de pagamento porque o pedido não foi desembolsado.</p>
       </div>
     </div>

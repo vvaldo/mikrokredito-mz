@@ -3,7 +3,9 @@
     <section class="modern-hero"><h1>Clientes</h1><p>Lista real da base de dados, com KYC, documentos, CRC e bloqueio/desbloqueio.</p><div class="hero-actions"><button class="btn btn-primary" @click="openCreate">+ Novo cliente</button><button class="btn" @click="load">Actualizar</button><button class="btn" @click="exportCsv">Exportar</button></div></section>
     <div class="kpi-grid"><div class="kpi good"><div class="label">Clientes</div><div class="value">{{ clients.length }}</div><div class="note">Base de dados</div></div><div class="kpi"><div class="label">KYC completo</div><div class="value">{{ complete }}</div><div class="note">Aprovados</div></div><div class="kpi warn"><div class="label">KYC bloqueado/incompleto</div><div class="value">{{ blockedKyc }}</div><div class="note">Atenção</div></div><div class="kpi danger"><div class="label">Bloqueados</div><div class="value">{{ blockedUsers }}</div><div class="note">Conta bloqueada</div></div></div>
     <div class="modern-card"><div class="table-head"><div><h2>Lista de clientes</h2><p class="muted">Não é permitido apagar cliente; apenas bloquear/desbloquear.</p></div><input class="input search" v-model="q" @keyup.enter="load" placeholder="Pesquisar cliente, telefone, email"></div>
+      <div class="table-wrap">
       <table class="modern-table"><thead><tr><th>Cliente</th><th>Contacto</th><th>Salário</th><th>KYC</th><th>CRC</th><th>Docs</th><th>Acções</th></tr></thead><tbody><tr v-for="c in filtered" :key="c.id"><td><strong>{{ c.User?.full_name }}</strong><br><span class="muted">{{ c.User?.email }} · NUIT {{ c.nuit || '—' }}</span></td><td>{{ c.User?.phone || '—' }}</td><td>{{ mzn(c.monthly_income) }}</td><td><StatusBadge :status="c.kyc_status" /></td><td>{{ crcLabel(c.crc_status) }}</td><td>{{ c.Documents?.length || 0 }}</td><td><div class="action-row"><button class="btn btn-sm" @click="viewClient(c)">Visualizar</button><button class="btn btn-sm btn-blue-soft" @click="editClient(c)">Editar</button><button class="btn btn-sm" @click="viewDocs(c)">Docs</button><button class="btn btn-sm btn-primary" @click="createLoan(c)">Novo pedido</button><button class="btn btn-sm btn-danger-soft" @click="toggleBlock(c)">{{ c.User?.status==='blocked'?'Desbloquear':'Bloquear' }}</button></div></td></tr></tbody></table>
+      </div>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="closeModal"><div class="mk-modal wide"><div class="mk-modal-head"><h2>{{ title }}</h2><button class="modal-x" @click="closeModal">×</button></div>
@@ -35,9 +37,11 @@
         <button class="btn btn-sm btn-primary" @click="saveCrc">💾 Guardar CRC</button>
       </div>
       <div v-if="modal==='docs'">
+        <div class="table-wrap">
         <table class="modern-table"><thead><tr><th>Tipo</th><th>Nome</th><th>Estado</th><th></th></tr></thead><tbody><tr v-for="d in selected.Documents" :key="d.id"><td>{{ d.type }}</td><td>{{ d.original_name }}</td><td><StatusBadge :status="d.status" /></td><td><div class="action-row"><button class="btn btn-sm" @click="downloadDoc(d)">Baixar</button><button class="btn btn-sm btn-primary" :disabled="d.status==='approved'" @click="reviewDoc(d,'approved')">Aprovar</button><button class="btn btn-sm btn-danger-soft" :disabled="d.status==='rejected'" @click="reviewDoc(d,'rejected')">Rejeitar</button></div></td></tr>
           <tr v-if="!selected.Documents?.length"><td colspan="4" class="empty-state">Ainda não há documentos carregados.</td></tr>
         </tbody></table>
+        </div>
         <div class="form-section" style="margin-top:14px">📎 Carregar novo documento</div>
         <div class="form-row">
           <div class="form-group">

@@ -12,10 +12,12 @@
         <select class="form-select" v-model="role" @change="load"><option value="">Todos perfis</option><option value="super_admin">Super Admin</option><option value="inst_admin">Gestor/Admin Banco</option><option value="inst_agent">Agente Crédito</option><option value="client">Cliente</option></select>
         <select class="form-select" v-model="institutionFilter" @change="load"><option value="">Todos bancos</option><option v-for="i in institutions" :key="i.id" :value="i.id">{{ i.name }}</option></select>
       </div>
+      <div class="table-wrap">
       <table class="modern-table"><thead><tr><th>Nome</th><th>Email</th><th>Perfil</th><th>Banco/Instituição</th><th>Estado</th><th>Docs</th><th>Acções</th></tr></thead><tbody>
         <tr v-for="u in users" :key="u.id"><td><strong>{{u.full_name}}</strong><br><span class="muted">{{u.phone||'—'}}</span></td><td>{{u.email}}</td><td>{{roleLabel(u.role)}}</td><td>{{u.Institution?.name||'Global'}}</td><td><span :class="u.status==='active'?'status-pill st-approved':'status-pill st-rejected'">{{u.status}}</span></td><td>{{ docList(u).length }}</td><td><div class="action-row"><button class="btn btn-sm" @click="openEdit(u)">Editar</button><button class="btn btn-sm btn-blue-soft" @click="openDocs(u)">Documentos</button><button class="btn btn-sm" @click="openPassword(u)">Alterar senha</button><button class="btn btn-sm btn-danger-soft" v-if="u.status==='active'" @click="disable(u)">Desabilitar</button><button class="btn btn-sm btn-primary" v-else @click="enable(u)">Activar</button></div></td></tr>
         <tr v-if="!users.length"><td colspan="7" class="empty-state">Sem utilizadores.</td></tr>
       </tbody></table>
+      </div>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="modal=false">
