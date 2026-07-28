@@ -19,13 +19,13 @@
 
     <div class="modern-card">
       <h2>Lista de pedidos</h2>
-      <p v-if="loading" class="muted">A carregar pedidos...</p>
+      <LoadingSpinner v-if="loading" label="A carregar pedidos..." />
       <div v-else class="table-wrap">
       <table class="modern-table">
         <thead><tr><th>Ref.</th><th>Cliente</th><th>Produto</th><th>Valor desembolsado</th><th>Total com juros</th><th>Docs</th><th>Status</th><th>Acções</th></tr></thead>
         <tbody>
           <tr v-if="items.length===0"><td colspan="8" class="muted">Sem pedidos submetidos.</td></tr>
-          <tr v-for="r in items" :key="r.id">
+          <tr v-for="r in pagedItems" :key="r.id">
             <td><strong>{{ r.reference }}</strong></td>
             <td>{{ r.Client?.User?.full_name || 'Cliente' }}</td>
             <td>{{ r.CreditProduct?.name || 'Produto' }}</td>
@@ -44,6 +44,7 @@
         </tbody>
       </table>
       </div>
+      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="items.length" />
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="close">
@@ -88,7 +89,13 @@
             <input class="input" type="number" v-model.number="newForm.term_months" placeholder="Prazo em meses" required>
           </div>
           <input class="input" v-model="newForm.purpose" placeholder="Finalidade" required>
-          <div class="modal-actions"><button class="btn" type="button" @click="close">Cancelar</button><button class="btn btn-primary" type="submit">Submeter pedido</button></div>
+          <div v-if="requiresNotaryConfirm" class="alert alert-info" style="margin-top:10px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+              <input type="checkbox" v-model="newForm.notary_document_confirmed">
+              <span>Confirmo que o documento de formalização em cartório/escritório foi entregue pelo cliente (obrigatório para valores entre 51.000 e 100.000 MZN).</span>
+            </label>
+          </div>
+          <div class="modal-actions"><button class="btn" type="button" @click="close">Cancelar</button><button class="btn btn-primary" type="submit" :disabled="requiresNotaryConfirm && !newForm.notary_document_confirmed">Submeter pedido</button></div>
         </form>
         <div v-if="modal==='confirm' && selected">
           <p>Confirma alterar o pedido <strong>{{ selected.reference }}</strong> para <strong>{{ statusLabel(action) }}</strong>?</p>
@@ -109,14 +116,20 @@
   </div>
 </template>
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import api, { downloadDocument } from '@/services/api'
-const toast=useToast(); const loading=ref(false); const items=ref([]); const modal=ref(null); const selected=ref(null); const action=ref(null); const reason=ref(''); const clients=ref([]); const products=ref([]); const newForm=ref({client_id:'',product_id:'',requested_amount:null,term_months:12,purpose:''})
+import AppPagination from '@/components/common/AppPagination.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+const toast=useToast(); const loading=ref(false); const items=ref([]); const modal=ref(null); const selected=ref(null); const action=ref(null); const reason=ref(''); const clients=ref([]); const products=ref([]); const newForm=ref({client_id:'',product_id:'',requested_amount:null,term_months:12,purpose:'',notary_document_confirmed:false})
+const requiresNotaryConfirm=computed(()=>Number(newForm.value.requested_amount)>50000 && Number(newForm.value.requested_amount)<=100000)
 const requiredDocs=['bi','nuit','residence_certificate','bank_statement']
 const viewTab=ref('details')
 const todayStr=new Date().toISOString().slice(0,10)
 const disburseDate=ref(todayStr)
+const page=ref(1), pageSize=ref(10)
+const pagedItems=computed(()=>items.value.slice((page.value-1)*pageSize.value, page.value*pageSize.value))
+watch(items, () => { page.value = 1 })
 const pending=computed(()=>items.value.filter(i=>['submitted','under_review','docs_requested'].includes(i.status)).length)
 const rejected=computed(()=>items.value.filter(i=>i.status==='rejected').length)
 const total=computed(()=>items.value.reduce((s,i)=>s+Number(i.requested_amount||0),0))
@@ -135,7 +148,7 @@ function paymentSchedules(r){ return r.Loan?.PaymentSchedules || [] }
 async function load(){loading.value=true; try{const [lo,cl,pr]=await Promise.all([api.get('/loans',{params:{limit:100000}}),api.get('/clients',{params:{limit:100000}}),api.get('/products')]); items.value=lo.data.data||[]; clients.value=cl.data.data||[]; products.value=pr.data.data||[]} finally{loading.value=false}}
 function close(){modal.value=null;selected.value=null;action.value=null;reason.value=''}
 async function openView(r){ viewTab.value='details'; try{ const {data}=await api.get('/loans/'+r.id); selected.value=data.data||r }catch(e){ selected.value=r } modal.value='view'}
-function openNew(){newForm.value={client_id:'',product_id:'',requested_amount:null,term_months:12,purpose:''}; modal.value='new'}
+function openNew(){newForm.value={client_id:'',product_id:'',requested_amount:null,term_months:12,purpose:'',notary_document_confirmed:false}; modal.value='new'}
 async function saveNew(){try{await api.post('/loans',newForm.value); toast.success('Pedido criado e enviado para notificações do banco/superadmin.'); close(); await load()}catch(e){toast.error(e.response?.data?.message||'Erro ao criar pedido')}}
 function confirmAction(r,a){selected.value=r;action.value=a;modal.value='confirm'}
 async function changeStatus(r,status){try{await api.patch(`/loans/${r.id}`,{status}); toast.success('Estado actualizado para '+statusLabel(status)); await load()}catch(e){toast.error(e.response?.data?.message || 'Erro ao actualizar estado')}}

@@ -6,11 +6,13 @@
       <div class="hero-actions"><button class="btn btn-primary" @click="openCreate">+ Novo produto</button><button class="btn" @click="load">Actualizar</button><button class="btn" @click="exportCsv">Exportar CSV</button></div>
     </section>
     <div class="modern-card">
+      <LoadingSpinner v-if="loading" label="A carregar produtos..." />
+      <template v-else>
       <div class="table-wrap">
       <table class="modern-table">
         <thead><tr><th>Produto</th><th>Banco</th><th>Faixa</th><th>Taxa</th><th>Mora</th><th>Prazo</th><th>Estado</th><th>Acções</th></tr></thead>
         <tbody>
-          <tr v-for="p in products" :key="p.id">
+          <tr v-for="p in pagedProducts" :key="p.id">
             <td><strong>{{ p.name }}</strong><br><span class="muted">{{ p.description || 'Sem descrição' }}</span></td>
             <td>{{ p.Institution?.name || '—' }}</td>
             <td>{{ mzn(p.min_amount) }} – {{ mzn(p.max_amount) }}</td>
@@ -24,6 +26,8 @@
         </tbody>
       </table>
       </div>
+      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="products.length" />
+      </template>
     </div>
     <div v-if="modal" class="modal-backdrop" @click.self="modal=false"><div class="mk-modal wide"><div class="mk-modal-head"><h2>{{ isCreate ? 'Novo produto' : 'Editar produto' }}</h2><button class="modal-x" @click="modal=false">×</button></div><form @submit.prevent="save"><div class="form-grid">
       <label v-if="isCreate" class="field"><span>Instituição</span><select class="input" v-model="form.institution_id" required><option value="">Seleccionar</option><option v-for="i in institutions" :key="i.id" :value="i.id">{{ i.name }}</option></select></label>
@@ -31,10 +35,13 @@
   </div>
 </template>
 <script setup>
-import { ref,onMounted } from 'vue'; import { useToast } from 'vue-toastification'; import api from '@/services/api'
-const toast=useToast(); const products=ref([]); const institutions=ref([]); const modal=ref(false); const isCreate=ref(false); const form=ref({})
+import { ref,computed,onMounted,watch } from 'vue'; import { useToast } from 'vue-toastification'; import api from '@/services/api'; import AppPagination from '@/components/common/AppPagination.vue'; import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+const toast=useToast(); const loading=ref(false); const products=ref([]); const institutions=ref([]); const modal=ref(false); const isCreate=ref(false); const form=ref({})
 const mzn=v=>Number(v||0).toLocaleString('pt-MZ',{style:'currency',currency:'MZN',maximumFractionDigits:0}); const percent=v=>(Number(v||0)*100).toFixed(2)+'%'
-async function load(){ const {data}=await api.get('/products/admin'); products.value=data.data||[] }
+const page=ref(1), pageSize=ref(10)
+const pagedProducts=computed(()=>products.value.slice((page.value-1)*pageSize.value, page.value*pageSize.value))
+watch(products, () => { page.value = 1 })
+async function load(){ loading.value=true; try{ const {data}=await api.get('/products/admin'); products.value=data.data||[] } finally{ loading.value=false } }
 async function loadInstitutions(){ try{ const {data}=await api.get('/institutions'); institutions.value=data.data||[] }catch(e){} }
 async function approve(p){ await api.post(`/products/${p.id}/approve`); toast.success('Produto aprovado e disponível no simulador.'); await load() }
 async function disable(p){ await api.delete(`/products/${p.id}`); toast.success('Produto desactivado.'); await load() }

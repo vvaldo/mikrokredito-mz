@@ -18,13 +18,15 @@
 
     <div class="modern-card">
       <h2>Lista de empréstimos</h2>
+      <LoadingSpinner v-if="loading" label="A carregar empréstimos..." />
+      <template v-else>
       <div class="table-wrap">
       <table class="modern-table">
         <thead>
           <tr><th>Ref.</th><th>Cliente</th><th>Valor</th><th>Juros</th><th>Valor total</th><th>Saldo</th><th>Estado</th><th>Acções</th></tr>
         </thead>
         <tbody>
-          <template v-for="l in loans" :key="l.id">
+          <template v-for="l in pagedLoans" :key="l.id">
             <tr>
               <td><strong>{{ l.LoanApplication?.reference || l.id }}</strong></td>
               <td>{{ l.LoanApplication?.Client?.User?.full_name || 'Cliente' }}</td>
@@ -73,6 +75,8 @@
         </tbody>
       </table>
       </div>
+      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="loans.length" />
+      </template>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="modal=null">
@@ -118,15 +122,18 @@
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useToast } from 'vue-toastification'
 import api from '@/services/api'
 import StatusBadge from '@/components/common/StatusBadge.vue'
+import AppPagination from '@/components/common/AppPagination.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const router = useRouter()
 const route = useRoute()
 const toast = useToast()
+const loading = ref(false)
 const loans = ref([])
 const opened = ref({})
 const modal = ref(null)
@@ -134,6 +141,9 @@ const selected = ref(null)
 const pay = ref({})
 const todayStr = new Date().toISOString().slice(0,10)
 const redisburseDate = ref(todayStr)
+const page = ref(1), pageSize = ref(10)
+const pagedLoans = computed(() => loans.value.slice((page.value-1)*pageSize.value, page.value*pageSize.value))
+watch(loans, () => { page.value = 1 })
 const applicationsPath = computed(() => route.path.startsWith('/super') ? '/super/applications?new=1' : '/institution/applications?new=1')
 
 const mzn = v => Number(v || 0).toLocaleString('pt-MZ', { style:'currency', currency:'MZN', maximumFractionDigits:0 })
@@ -150,7 +160,7 @@ function statusLabel(s){ return ({completed:'Liquidado',active:'Activo',overdue:
 const totalPrincipal = computed(()=>loans.value.reduce((s,l)=>s+disbursedAmount(l),0))
 const totalRepayable = computed(()=>loans.value.reduce((s,l)=>s+repayableAmount(l),0))
 const totalBalance = computed(()=>loans.value.reduce((s,l)=>s+balanceAmount(l),0))
-async function load(){ try{ const {data}=await api.get('/loans/active/list?limit=100000'); loans.value=(data.data||[]).filter(l=>['active','overdue','completed','approved_pending_disbursement','disbursed_without_schedule'].includes(displayStatus(l))) }catch(e){ toast.error(e.response?.data?.message||'Erro ao carregar empréstimos') } }
+async function load(){ loading.value=true; try{ const {data}=await api.get('/loans/active/list?limit=100000'); loans.value=(data.data||[]).filter(l=>['active','overdue','completed','approved_pending_disbursement','disbursed_without_schedule'].includes(displayStatus(l))) }catch(e){ toast.error(e.response?.data?.message||'Erro ao carregar empréstimos') } finally{ loading.value=false } }
 function toggle(l){ opened.value[l.id]=!opened.value[l.id] }
 function viewLoan(l){ selected.value=l; modal.value='view' }
 function openPay(l){ selected.value=l; pay.value={loan_id:l.id, method:'bank_transfer', amount:null, external_reference:'', phone_number:'', receipt:null}; modal.value='pay' }

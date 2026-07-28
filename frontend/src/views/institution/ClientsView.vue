@@ -3,9 +3,13 @@
     <section class="modern-hero"><h1>Clientes</h1><p>Lista real da base de dados, com KYC, documentos, CRC e bloqueio/desbloqueio.</p><div class="hero-actions"><button class="btn btn-primary" @click="openCreate">+ Novo cliente</button><button class="btn" @click="load">Actualizar</button><button class="btn" @click="exportCsv">Exportar</button></div></section>
     <div class="kpi-grid"><div class="kpi good"><div class="label">Clientes</div><div class="value">{{ clients.length }}</div><div class="note">Base de dados</div></div><div class="kpi"><div class="label">KYC completo</div><div class="value">{{ complete }}</div><div class="note">Aprovados</div></div><div class="kpi warn"><div class="label">KYC bloqueado/incompleto</div><div class="value">{{ blockedKyc }}</div><div class="note">Atenção</div></div><div class="kpi danger"><div class="label">Bloqueados</div><div class="value">{{ blockedUsers }}</div><div class="note">Conta bloqueada</div></div></div>
     <div class="modern-card"><div class="table-head"><div><h2>Lista de clientes</h2><p class="muted">Não é permitido apagar cliente; apenas bloquear/desbloquear.</p></div><input class="input search" v-model="q" @keyup.enter="load" placeholder="Pesquisar cliente, telefone, email"></div>
+      <LoadingSpinner v-if="loading" label="A carregar clientes..." />
+      <template v-else>
       <div class="table-wrap">
-      <table class="modern-table"><thead><tr><th>Cliente</th><th>Contacto</th><th>Salário</th><th>KYC</th><th>CRC</th><th>Docs</th><th>Acções</th></tr></thead><tbody><tr v-for="c in filtered" :key="c.id"><td><strong>{{ c.User?.full_name }}</strong><br><span class="muted">{{ c.User?.email }} · NUIT {{ c.nuit || '—' }}</span></td><td>{{ c.User?.phone || '—' }}</td><td>{{ mzn(c.monthly_income) }}</td><td><StatusBadge :status="c.kyc_status" /></td><td>{{ crcLabel(c.crc_status) }}</td><td>{{ c.Documents?.length || 0 }}</td><td><div class="action-row"><button class="btn btn-sm" @click="viewClient(c)">Visualizar</button><button class="btn btn-sm btn-blue-soft" @click="editClient(c)">Editar</button><button class="btn btn-sm" @click="viewDocs(c)">Docs</button><button class="btn btn-sm btn-primary" @click="createLoan(c)">Novo pedido</button><button class="btn btn-sm btn-danger-soft" @click="toggleBlock(c)">{{ c.User?.status==='blocked'?'Desbloquear':'Bloquear' }}</button></div></td></tr></tbody></table>
+      <table class="modern-table"><thead><tr><th>Cliente</th><th>Contacto</th><th>Salário</th><th>KYC</th><th>CRC</th><th>Docs</th><th>Acções</th></tr></thead><tbody><tr v-for="c in pagedClients" :key="c.id"><td><strong>{{ c.User?.full_name }}</strong><br><span class="muted">{{ c.User?.email }} · NUIT {{ c.nuit || '—' }}</span></td><td>{{ c.User?.phone || '—' }}</td><td>{{ mzn(c.monthly_income) }}</td><td><StatusBadge :status="c.kyc_status" /></td><td>{{ crcLabel(c.crc_status) }}</td><td>{{ c.Documents?.length || 0 }}</td><td><div class="action-row"><button class="btn btn-sm" @click="viewClient(c)">Visualizar</button><button class="btn btn-sm btn-blue-soft" @click="editClient(c)">Editar</button><button class="btn btn-sm" @click="viewDocs(c)">Docs</button><button class="btn btn-sm" @click="openFullProfile(c)">Perfil / PDF</button><button class="btn btn-sm btn-primary" @click="createLoan(c)">Novo pedido</button><button class="btn btn-sm btn-danger-soft" @click="toggleBlock(c)">{{ c.User?.status==='blocked'?'Desbloquear':'Bloquear' }}</button></div></td></tr></tbody></table>
       </div>
+      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="filtered.length" />
+      </template>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="closeModal"><div class="mk-modal wide"><div class="mk-modal-head"><h2>{{ title }}</h2><button class="modal-x" @click="closeModal">×</button></div>
@@ -66,16 +70,20 @@
   </div>
 </template>
 <script setup>
-import { ref, computed, onMounted } from 'vue'; import { useRouter, useRoute } from 'vue-router'; import { useToast } from 'vue-toastification'; import api,{downloadDocument,uploadDocument} from '@/services/api'; import StatusBadge from '@/components/common/StatusBadge.vue'
-const router=useRouter(), route=useRoute(), toast=useToast(); const clients=ref([]), q=ref(''), modal=ref(null), selected=ref(null);
+import { ref, computed, onMounted, watch } from 'vue'; import { useRouter, useRoute } from 'vue-router'; import { useToast } from 'vue-toastification'; import api,{downloadDocument,uploadDocument} from '@/services/api'; import StatusBadge from '@/components/common/StatusBadge.vue'; import AppPagination from '@/components/common/AppPagination.vue'; import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+const router=useRouter(), route=useRoute(), toast=useToast(); const clients=ref([]), q=ref(''), modal=ref(null), selected=ref(null), loading=ref(false);
 const review=ref({kyc_notes:'', crc_status:'em_verificacao', crc_comment:''}); const uploadType=ref('bi');
+const page=ref(1), pageSize=ref(10)
 const base=computed(()=>route.path.startsWith('/super')?'/super':'/institution');
 const filtered=computed(()=>clients.value.filter(c=>[c.User?.full_name,c.User?.email,c.User?.phone,c.nuit].join(' ').toLowerCase().includes(q.value.toLowerCase()))); const complete=computed(()=>clients.value.filter(c=>c.kyc_status==='approved').length); const blockedKyc=computed(()=>clients.value.filter(c=>['incomplete','rejected'].includes(c.kyc_status)).length); const blockedUsers=computed(()=>clients.value.filter(c=>c.User?.status==='blocked').length); const title=computed(()=>modal.value==='docs'?'Documentos':'Cliente');
+const pagedClients=computed(()=>filtered.value.slice((page.value-1)*pageSize.value, page.value*pageSize.value));
+watch(filtered, () => { page.value = 1 });
 const mzn=v=>Number(v||0).toLocaleString('pt-MZ',{style:'currency',currency:'MZN',maximumFractionDigits:0}); const crcLabel=v=>({nao_consta:'Não consta',consta:'Consta',em_verificacao:'Em verificação'}[v]||'Em verificação');
-async function load(){try{const {data}=await api.get('/clients',{params:{search:q.value,limit:100000}}); clients.value=data.data||[]}catch(e){toast.error(e.response?.data?.message||'Erro ao carregar clientes')}}
+async function load(){loading.value=true; try{const {data}=await api.get('/clients',{params:{search:q.value,limit:100000}}); clients.value=data.data||[]}catch(e){toast.error(e.response?.data?.message||'Erro ao carregar clientes')} finally{loading.value=false}}
 function closeModal(){modal.value=null; selected.value=null} function openCreate(){router.push(`${base.value}/register-client`)} function editClient(c){router.push(`${base.value}/edit-client/${c.id}`)}
 function viewClient(c){selected.value=c; review.value={kyc_notes:c.kyc_notes||'', crc_status:c.crc_status||'em_verificacao', crc_comment:c.crc_comment||''}; modal.value='view'}
 function viewDocs(c){selected.value=c; modal.value='docs'}
+function openFullProfile(c){router.push(`${base.value}/clients/${c.id}`)}
 async function toggleBlock(c){try{await api.post(`/clients/${c.id}/block`,{blocked:c.User?.status!=='blocked'}); toast.success('Estado do cliente actualizado'); await load()}catch(e){toast.error(e.response?.data?.message||'Erro ao bloquear/desbloquear')}}
 async function reviewDoc(d,status){try{await api.patch(`/documents/${d.id}/review`,{status}); toast.success('Documento actualizado: '+status); const idx=selected.value.Documents.findIndex(x=>x.id===d.id); if(idx>=0) selected.value.Documents[idx].status=status; await load()}catch(e){toast.error(e.response?.data?.message||'Erro ao rever documento')}}
 async function approveKyc(approved){

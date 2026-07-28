@@ -12,12 +12,16 @@
         <select class="form-select" v-model="role" @change="load"><option value="">Todos perfis</option><option value="super_admin">Super Admin</option><option value="inst_admin">Gestor/Admin Banco</option><option value="inst_agent">Agente Crédito</option><option value="client">Cliente</option></select>
         <select class="form-select" v-model="institutionFilter" @change="load"><option value="">Todos bancos</option><option v-for="i in institutions" :key="i.id" :value="i.id">{{ i.name }}</option></select>
       </div>
+      <LoadingSpinner v-if="loading" label="A carregar utilizadores..." />
+      <template v-else>
       <div class="table-wrap">
       <table class="modern-table"><thead><tr><th>Nome</th><th>Email</th><th>Perfil</th><th>Banco/Instituição</th><th>Estado</th><th>Docs</th><th>Acções</th></tr></thead><tbody>
-        <tr v-for="u in users" :key="u.id"><td><strong>{{u.full_name}}</strong><br><span class="muted">{{u.phone||'—'}}</span></td><td>{{u.email}}</td><td>{{roleLabel(u.role)}}</td><td>{{u.Institution?.name||'Global'}}</td><td><span :class="u.status==='active'?'status-pill st-approved':'status-pill st-rejected'">{{u.status}}</span></td><td>{{ docList(u).length }}</td><td><div class="action-row"><button class="btn btn-sm" @click="openEdit(u)">Editar</button><button class="btn btn-sm btn-blue-soft" @click="openDocs(u)">Documentos</button><button class="btn btn-sm" @click="openPassword(u)">Alterar senha</button><button class="btn btn-sm btn-danger-soft" v-if="u.status==='active'" @click="disable(u)">Desabilitar</button><button class="btn btn-sm btn-primary" v-else @click="enable(u)">Activar</button></div></td></tr>
+        <tr v-for="u in pagedUsers" :key="u.id"><td><strong>{{u.full_name}}</strong><br><span class="muted">{{u.phone||'—'}}</span></td><td>{{u.email}}</td><td>{{roleLabel(u.role)}}</td><td>{{u.Institution?.name||'Global'}}</td><td><span :class="u.status==='active'?'status-pill st-approved':'status-pill st-rejected'">{{u.status}}</span></td><td>{{ docList(u).length }}</td><td><div class="action-row"><button class="btn btn-sm" @click="openEdit(u)">Editar</button><button class="btn btn-sm btn-blue-soft" @click="openDocs(u)">Documentos</button><button class="btn btn-sm" @click="openPassword(u)">Alterar senha</button><button class="btn btn-sm btn-danger-soft" v-if="u.status==='active'" @click="disable(u)">Desabilitar</button><button class="btn btn-sm btn-primary" v-else @click="enable(u)">Activar</button></div></td></tr>
         <tr v-if="!users.length"><td colspan="7" class="empty-state">Sem utilizadores.</td></tr>
       </tbody></table>
       </div>
+      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="users.length" />
+      </template>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="modal=false">
@@ -55,8 +59,11 @@
   </div>
 </template>
 <script setup>
-import { ref,onMounted } from 'vue'; import { useToast } from 'vue-toastification'; import api, { downloadDocument } from '@/services/api'
-const toast=useToast(); const users=ref([]), institutions=ref([]), q=ref(''), role=ref(''), institutionFilter=ref(''), modal=ref(false), form=ref({}), docsModal=ref(false), passwordModal=ref(false), selectedUser=ref(null), newPassword=ref('')
+import { ref,onMounted,computed,watch } from 'vue'; import { useToast } from 'vue-toastification'; import api, { downloadDocument } from '@/services/api'; import AppPagination from '@/components/common/AppPagination.vue'; import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+const toast=useToast(); const loading=ref(false); const users=ref([]), institutions=ref([]), q=ref(''), role=ref(''), institutionFilter=ref(''), modal=ref(false), form=ref({}), docsModal=ref(false), passwordModal=ref(false), selectedUser=ref(null), newPassword=ref('')
+const page=ref(1), pageSize=ref(10)
+const pagedUsers=computed(()=>users.value.slice((page.value-1)*pageSize.value, page.value*pageSize.value))
+watch(users, () => { page.value = 1 })
 
 function docList(u){ return u?.Client?.Documents || [] }
 function docLabel(t){return {bi:'BI',nuit:'NUIT',residence_certificate:'Atestado de residência',bank_statement:'Extracto bancário',income_proof:'Folha salarial'}[t]||t}
@@ -69,7 +76,7 @@ async function savePassword(){try{await api.post(`/users/${selectedUser.value.id
 
 function roleLabel(r){return {super_admin:'Super Admin',inst_admin:'Gestor/Admin Banco',inst_agent:'Agente Crédito',client:'Cliente'}[r]||r}
 async function loadInstitutions(){const {data}=await api.get('/institutions'); institutions.value=data.data||[]}
-async function load(){const {data}=await api.get('/users',{params:{q:q.value,role:role.value,institution_id:institutionFilter.value}}); users.value=data.data||[]}
+async function load(){loading.value=true; try{const {data}=await api.get('/users',{params:{q:q.value,role:role.value,institution_id:institutionFilter.value}}); users.value=data.data||[]} finally{loading.value=false}}
 function openCreate(){form.value={full_name:'',email:'',phone:'',role:'client',status:'active',institution_id:'',password:'Mikro@2026'}; modal.value=true}
 function openEdit(u){form.value={id:u.id,full_name:u.full_name,email:u.email,phone:u.phone,role:u.role,status:u.status,institution_id:u.institution_id||'',avatar_url:u.avatar_url}; modal.value=true}
 async function save(){try{ if(form.value.role==='super_admin') form.value.institution_id=null; if(form.value.id){const {id,...payload}=form.value; await api.patch(`/users/${id}`,payload)}else{await api.post('/users',form.value)} toast.success('Utilizador gravado.'); modal.value=false; await load()}catch(e){toast.error(e.response?.data?.message||'Erro ao gravar utilizador')}}

@@ -8,9 +8,11 @@
 
     <div class="modern-card">
       <div class="form-row" style="margin-bottom:12px"><input class="form-input" v-model="q" placeholder="Pesquisar instituição, email, telefone" @input="filter"></div>
+      <LoadingSpinner v-if="loading" label="A carregar instituições..." />
+      <template v-else>
       <div class="table-wrap">
       <table class="modern-table"><thead><tr><th>Instituição</th><th>Contacto</th><th>Endereço</th><th>Estado</th><th>Acções</th></tr></thead><tbody>
-        <tr v-for="i in filtered" :key="i.id">
+        <tr v-for="i in pagedInstitutions" :key="i.id">
           <td><strong>{{ i.name }}</strong><br><span class="muted">{{ i.acronym }} · Licença {{ i.license_number || '—' }}</span></td>
           <td>{{ i.email || '—' }}<br><span class="muted">{{ i.phone || '—' }}</span></td>
           <td>{{ i.province || '—' }}<br><span class="muted">{{ i.address || '—' }}</span></td>
@@ -20,6 +22,8 @@
         <tr v-if="!filtered.length"><td colspan="5" class="empty-state">Sem instituições.</td></tr>
       </tbody></table>
       </div>
+      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="filtered.length" />
+      </template>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="modal=false">
@@ -44,11 +48,14 @@
   </div>
 </template>
 <script setup>
-import { ref,onMounted } from 'vue'; import { useToast } from 'vue-toastification'; import api from '@/services/api'
-const toast=useToast(); const institutions=ref([]), filtered=ref([]), q=ref(''), modal=ref(false), form=ref({})
+import { ref,computed,onMounted,watch } from 'vue'; import { useToast } from 'vue-toastification'; import api from '@/services/api'; import AppPagination from '@/components/common/AppPagination.vue'; import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+const toast=useToast(); const loading=ref(false); const institutions=ref([]), filtered=ref([]), q=ref(''), modal=ref(false), form=ref({})
+const page=ref(1), pageSize=ref(10)
+const pagedInstitutions=computed(()=>filtered.value.slice((page.value-1)*pageSize.value, page.value*pageSize.value))
+watch(filtered, () => { page.value = 1 })
 function statusLabel(s){return {active:'Activo',pending:'Pendente',suspended:'Inactivo'}[s]||s}
 function statusClass(s){return s==='active'?'status-pill st-approved':s==='pending'?'status-pill st-pending':'status-pill st-rejected'}
-async function load(){const {data}=await api.get('/institutions'); institutions.value=data.data||[]; filter()}
+async function load(){loading.value=true; try{const {data}=await api.get('/institutions'); institutions.value=data.data||[]; filter()} finally{loading.value=false}}
 function filter(){const term=q.value.toLowerCase(); filtered.value=institutions.value.filter(i=>!term || [i.name,i.acronym,i.email,i.phone].some(v=>String(v||'').toLowerCase().includes(term)))}
 function openCreate(){form.value={name:'',acronym:'',license_number:'',email:'',phone:'',website:'',province:'',address:'',color:'#185FA5',status:'pending'}; modal.value=true}
 function openEdit(i){form.value={...i}; modal.value=true}

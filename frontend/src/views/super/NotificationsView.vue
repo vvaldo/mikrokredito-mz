@@ -41,13 +41,15 @@
             <option value="whatsapp">WhatsApp</option>
           </select>
         </div>
+        <LoadingSpinner v-if="logsLoading" label="A carregar logs..." />
+        <template v-else>
         <div class="table-wrap">
         <table class="modern-table">
           <thead><tr><th>Data</th><th>Canal</th><th>Evento</th><th>Destinatário</th><th>Tentativas</th><th>Estado</th><th></th></tr></thead>
           <tbody>
-            <tr v-for="n in filteredLogs" :key="n.id">
+            <tr v-for="n in pagedLogs" :key="n.id">
               <td style="white-space:nowrap;font-size:11px">{{ dfmt(n.created_at) }}</td>
-              <td><span class="ch-pill" :class="'ch-'+n.channel">{{ n.channel }}</span></td>
+              <td><span class="ch-pill" :class="'ch-'+n.channel">{{ chIcon(n.channel) }} {{ n.channel }}</span></td>
               <td style="font-size:11px;max-width:180px" class="truncate">{{ evLabel(n.event) }}</td>
               <td class="td-muted td-clamp">{{ n.recipient_email || n.recipient_phone || '—' }}</td>
               <td style="text-align:center;font-size:11px">{{ n.attempts }}/{{ n.max_attempts }}</td>
@@ -67,6 +69,8 @@
           </tbody>
         </table>
         </div>
+        <AppPagination v-model:page="logPage" v-model:page-size="logPageSize" :total="filteredLogs.length" />
+        </template>
       </div>
     </template>
 
@@ -80,7 +84,8 @@
           Estas variáveis são substituídas automaticamente no envio.
         </div>
       </div>
-      <div v-if="!templates.length && !tmplLoading" class="modern-card" style="text-align:center;padding:40px;color:var(--mk-text-2)">
+      <div v-if="tmplLoading" class="modern-card"><LoadingSpinner label="A carregar templates..." /></div>
+      <div v-else-if="!templates.length" class="modern-card" style="text-align:center;padding:40px;color:var(--mk-text-2)">
         Sem templates. Clique em "+ Novo template" para criar.
         <button class="btn btn-primary" style="display:block;margin:16px auto 0" @click="openTmpl()">+ Novo template</button>
       </div>
@@ -95,7 +100,7 @@
           <tbody>
             <tr v-for="t in templates" :key="t.id">
               <td><span class="badge badge-blue" style="font-size:10px">{{ t.key }}</span></td>
-              <td><span class="ch-pill" :class="'ch-'+t.channel">{{ t.channel }}</span></td>
+              <td><span class="ch-pill" :class="'ch-'+t.channel">{{ chIcon(t.channel) }} {{ t.channel }}</span></td>
               <td style="font-size:12px;max-width:200px" class="truncate">{{ t.subject || '—' }}</td>
               <td style="font-size:11px;color:var(--mk-text-2);max-width:260px" class="truncate">{{ stripHtml(t.body) }}</td>
               <td>
@@ -180,9 +185,9 @@
                 <div class="form-group">
                   <label class="form-label">Canal <span class="req">*</span></label>
                   <select class="form-select" v-model="editingTmpl.channel" required>
-                    <option value="email">Email</option>
-                    <option value="sms">SMS</option>
-                    <option value="whatsapp">WhatsApp</option>
+                    <option value="email">📧 Email</option>
+                    <option value="sms">📱 SMS</option>
+                    <option value="whatsapp">💬 WhatsApp</option>
                   </select>
                 </div>
               </div>
@@ -211,13 +216,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useNotificationStore } from '@/stores/notifications'
 import { useBrandingStore } from '@/stores/branding'
 import { useToast } from 'vue-toastification'
+import AppPagination from '@/components/common/AppPagination.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 
 const notif = useNotificationStore(), brand = useBrandingStore(), toast = useToast()
 const activeTab  = ref('logs')
+const logsLoading = ref(false)
 const logs       = ref([])
 const templates  = ref([])
 const tmplLoading= ref(false)
@@ -237,6 +245,9 @@ const filteredLogs = computed(() => logs.value.filter(n => {
   const matchCh     = !logChannel.value || n.channel === logChannel.value
   return matchSearch && matchStatus && matchCh
 }))
+const logPage = ref(1), logPageSize = ref(10)
+const pagedLogs = computed(() => filteredLogs.value.slice((logPage.value-1)*logPageSize.value, logPage.value*logPageSize.value))
+watch(filteredLogs, () => { logPage.value = 1 })
 
 const eventKeys = [
   { k:'loan_submitted',       label:'Pedido submetido' },
@@ -292,7 +303,7 @@ async function saveRules() {
   finally { savingRules.value = false }
 }
 
-async function loadLogs()  { try { const {data}=await notif.fetchLogs({limit:200}) } catch(e){} logs.value = notif.logs }
+async function loadLogs()  { logsLoading.value = true; try { const {data}=await notif.fetchLogs({limit:200}) } catch(e){} logs.value = notif.logs; logsLoading.value = false }
 async function loadTmpls() { tmplLoading.value=true; await notif.fetchTemplates(); templates.value=notif.templates; tmplLoading.value=false }
 
 function openTmpl(t) {
@@ -327,6 +338,7 @@ const dfmt = d => d ? new Date(d).toLocaleString('pt-MZ') : '—'
 const stripHtml = s => s?.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,80)||''
 const statusBadge = s => ({sent:'badge-approved',delivered:'badge-approved',failed:'badge-rejected',queued:'badge-warning',sending:'badge-warning'}[s]||'badge-neutral')
 const evLabel = ev => eventKeys.find(e=>e.k===ev)?.label || ev
+const chIcon = ch => ({email:'📧',sms:'📱',whatsapp:'💬'}[ch]||'')
 
 onMounted(() => { loadLogs(); loadTmpls(); loadRules() })
 </script>

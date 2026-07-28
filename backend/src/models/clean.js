@@ -81,6 +81,8 @@ async function clean() {
 
   if (minimal) {
     await createSuperAdminOnly();
+    await seed.seedNotificationDefaults();
+    console.log('Templates e regras de notificação (email/SMS/WhatsApp) por omissão criados.');
   } else {
     await seed();
   }

@@ -37,11 +37,13 @@
 
     <div class="modern-card">
       <h2>Pagamentos recentes</h2><p class="muted">Só os seus pagamentos. Pode visualizar detalhes e baixar o comprovativo anexado.</p>
+      <LoadingSpinner v-if="loading" label="A carregar pagamentos..." />
+      <template v-else>
       <div class="table-wrap">
       <table class="modern-table">
         <thead><tr><th>Ref.</th><th>Empréstimo</th><th>Valor</th><th>Método</th><th>Data</th><th>Estado</th><th>Comprovativo</th><th>Acções</th></tr></thead>
         <tbody>
-          <tr v-for="r in rows" :key="r.id">
+          <tr v-for="r in pagedRows" :key="r.id">
             <td><strong>{{ r.reference }}</strong></td>
             <td>{{ r.Loan?.LoanApplication?.reference || '—' }}</td>
             <td>{{ mzn(r.amount) }}</td>
@@ -58,6 +60,8 @@
         </tbody>
       </table>
       </div>
+      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="rows.length" />
+      </template>
     </div>
 
     <div v-if="selected" class="modal-backdrop" @click.self="selected=null">
@@ -79,12 +83,18 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useToast } from 'vue-toastification'
 import api from '@/services/api'
+import AppPagination from '@/components/common/AppPagination.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 const toast = useToast()
+const loading = ref(false)
 const rows = ref([])
 const selected = ref(null)
+const page = ref(1), pageSize = ref(10)
+const pagedRows = computed(() => rows.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
+watch(rows, () => { page.value = 1 })
 const donutColors = ['var(--erp-green)', 'var(--erp-orange)', 'var(--erp-blue)', 'var(--erp-red)', 'var(--mk-border)']
 
 function mzn(v) { return Number(v || 0).toLocaleString('pt-MZ', { style: 'currency', currency: 'MZN', maximumFractionDigits: 0 }) }
@@ -156,10 +166,12 @@ function exportExcel() {
 }
 
 async function load() {
+  loading.value = true
   try {
     const { data } = await api.get('/payments', { params: { limit: 100000 } })
     rows.value = data.data || []
   } catch (e) { toast.error(e.response?.data?.message || 'Erro ao carregar pagamentos') }
+  finally { loading.value = false }
 }
 onMounted(load)
 </script>

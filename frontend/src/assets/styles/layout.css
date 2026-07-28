@@ -174,7 +174,7 @@ table{border-collapse:collapse;width:100%}
 
 /* ── MAIN CONTENT ── */
 .main-content{
-  flex:1;overflow-y:auto;overflow-x:hidden;
+  flex:1;min-width:0;overflow-y:auto;overflow-x:hidden;
   padding:22px;display:flex;flex-direction:column;
   background:var(--mk-surface-3);
 }
