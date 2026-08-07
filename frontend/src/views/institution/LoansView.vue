@@ -43,6 +43,7 @@
                   <button class="btn btn-sm" @click="viewLoan(l)">Visualizar</button>
                   <button class="btn btn-sm" @click="downloadStatementPdf(l)">Baixar PDF</button>
                   <button class="btn btn-sm" @click="editDisbursement(l)">Editar desembolso</button>
+                  <button class="btn btn-sm btn-blue-soft" @click="recalculate(l)">Recalcular</button>
                 </div>
               </td>
             </tr>
@@ -166,6 +167,7 @@ function viewLoan(l){ selected.value=l; modal.value='view' }
 function openPay(l){ selected.value=l; pay.value={loan_id:l.id, method:'bank_transfer', amount:null, external_reference:'', phone_number:'', receipt:null}; modal.value='pay' }
 async function savePay(){ try{ const fd=new FormData(); for(const k of ['loan_id','amount','method','external_reference','phone_number']) fd.append(k,pay.value[k]||''); fd.append('receipt',pay.value.receipt); await api.post('/payments/manual',fd,{headers:{'Content-Type':'multipart/form-data'}}); toast.success('Pagamento registado e reflectido na conta do cliente'); modal.value=null; await load() }catch(e){ toast.error(e.response?.data?.message||'Erro ao registar pagamento') } }
 async function notify(l){ try{ await api.post(`/loans/${l.id}/notify-payment`); toast.success('Email de cobrança enviado ao cliente e registado em logs') }catch(e){ toast.error(e.response?.data?.message||'Erro ao enviar email de notificação') } }
+async function recalculate(l){ if(!confirm('Recalcular este empréstimo a partir do histórico de pagamentos? As prestações e a mora serão reconstruídas.')) return; try{ await api.post(`/loans/${l.id}/recalculate`); toast.success('Empréstimo recalculado.'); await load() }catch(e){ toast.error(e.response?.data?.message||'Erro ao recalcular empréstimo') } }
 function hasPaidInstallments(l){ return (l?.PaymentSchedules||[]).some(p => ['paid','partial'].includes(p.status)) }
 function editDisbursement(l){ selected.value=l; redisburseDate.value=(l.disbursed_at||todayStr).slice(0,10); modal.value='redisburse' }
 async function confirmRedisburse(){

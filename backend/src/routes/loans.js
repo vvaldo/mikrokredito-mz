@@ -634,6 +634,30 @@ router.post('/:id/notify-payment',
   }
 );
 
+// ── Força a reconstrução cronológica de um empréstimo (prestações + mora + total pago) a
+// partir do histórico real de transacções confirmadas. Útil quando a lógica de cálculo é
+// corrigida no backend: um simples redeploy não recalcula empréstimos já existentes cujo
+// total pago já reconcilie (o reparo automático em GET /loans só dispara nesse caso de
+// divergência) — este botão permite forçar o recálculo manualmente para um empréstimo.
+router.post('/:id/recalculate',
+  authenticate,
+  authorize('inst_admin', 'super_admin'),
+  audit('loan_recalculated'),
+  async (req, res, next) => {
+    try {
+      const loan = await Loan.findByPk(req.params.id);
+      if (!loan) return res.status(404).json({ success: false, message: 'Empréstimo não encontrado' });
+      if (req.user.role !== 'super_admin' && loan.institution_id !== req.user.institution_id) {
+        return res.status(403).json({ success: false, message: 'Acesso negado ao empréstimo' });
+      }
+      const { rebuildLoanFromTransactions } = require('./payments');
+      await rebuildLoanFromTransactions(loan.id);
+      await loan.reload({ include: [{ model: PaymentSchedule }] });
+      res.json({ success: true, message: 'Empréstimo recalculado a partir do histórico de transacções.', data: loan });
+    } catch (err) { next(err); }
+  }
+);
+
 // ── Get payment schedule
 router.get('/:id/schedule', authenticate, async (req, res, next) => {
   try {
