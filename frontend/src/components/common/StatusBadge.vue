@@ -18,6 +18,8 @@ const MAP = {
   suspended:      ['badge-warning',    'Suspenso'],
   pending:        ['badge-queued',     'Pendente'],
   overdue:        ['badge-overdue',    'Em falta'],
+  paid:           ['badge-approved',   'Pago'],
+  partial:        ['badge-warning',    'Parcial'],
   completed:      ['badge-completed',  'Liquidado'],
   written_off:    ['badge-danger',     'Abatido'],
   sent:           ['badge-sent',       'Enviado'],

@@ -42,11 +42,11 @@ function startOfYear(d){ return new Date(d.getFullYear(), 0, 1); }
 // 'paid' e fica presa em 'overdue' para sempre, mesmo já estando paga aos olhos do utilizador.
 const PAID_TOLERANCE = 1;
 
-async function applyLateFeesForLoan(loanId) {
+async function applyLateFeesForLoan(loanId, asOf = new Date()) {
   const loan = await Loan.findByPk(loanId, { include: [{ model: LoanApplication, include: [CreditProduct] }] });
   if (!loan) return 0;
   const rate = Number(loan.LoanApplication?.CreditProduct?.late_fee_rate ?? 0);
-  const today = startOfDay(new Date());
+  const today = startOfDay(asOf);
   const schedules = await PaymentSchedule.findAll({
     where: { loan_id: loanId, status: { [Op.in]: ['pending','partial','overdue'] } },
     order: [['due_date','ASC']],
@@ -267,6 +267,10 @@ async function rebuildLoanFromTransactions(loanId) {
     order: [['created_at', 'ASC']],
   });
   for (const tx of activeTxs) {
+    // Traz a mora em dia à data de CADA pagamento (não só à data de hoje), para que um
+    // pagamento que só liquidou o capital+juros mas chegou depois do vencimento continue a
+    // reconhecer a mora já vencida nesse momento em vez de a apagar do histórico.
+    await applyLateFeesForLoan(loanId, tx.createdAt || tx.created_at);
     await allocateTransactionToSchedules(tx);
     if (!tx.reconciled) await tx.update({ reconciled: true, reconciled_at: new Date() });
   }
