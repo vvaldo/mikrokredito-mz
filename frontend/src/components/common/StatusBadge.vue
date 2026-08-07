@@ -27,6 +27,7 @@ const MAP = {
   sending:        ['badge-queued',     'A enviar'],
   bounced:        ['badge-failed',     'Bounce'],
   confirmed:      ['badge-sent',       'Confirmado'],
+  reversed:       ['badge-danger',     'Cancelado'],
   kyc_approved:   ['badge-approved',   'Verificado'],
   kyc_pending:    ['badge-warning',    'Pendente'],
   kyc_incomplete: ['badge-neutral',    'Incompleto'],

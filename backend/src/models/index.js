@@ -236,6 +236,12 @@ const PaymentTransaction = sequelize.define('PaymentTransaction', {
   applied_late_fee: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
   payment_month: DataTypes.STRING,
   registered_by: DataTypes.UUID,
+  original_amount: DataTypes.DECIMAL(15, 2),
+  edited_at: DataTypes.DATE,
+  edited_by: DataTypes.UUID,
+  cancelled_at: DataTypes.DATE,
+  cancelled_by: DataTypes.UUID,
+  cancel_reason: DataTypes.TEXT,
 }, { tableName: 'payment_transactions', timestamps: true, underscored: true });
 
 // ─────────────────────────────────────────────

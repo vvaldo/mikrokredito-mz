@@ -36,11 +36,16 @@ function startOfWeek(d){ const x=startOfDay(d); const day=x.getDay()||7; x.setDa
 function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
 function startOfYear(d){ return new Date(d.getFullYear(), 0, 1); }
 
+// A UI só mostra Meticais sem casas decimais (maximumFractionDigits:0), mas os valores
+// internamente têm 2 casas decimais. Um pagamento digitado a olhar para o valor arredondado
+// pode ficar a cêntimos do valor exacto — sem esta tolerância essa prestação nunca atinge
+// 'paid' e fica presa em 'overdue' para sempre, mesmo já estando paga aos olhos do utilizador.
+const PAID_TOLERANCE = 1;
+
 async function applyLateFeesForLoan(loanId) {
   const loan = await Loan.findByPk(loanId, { include: [{ model: LoanApplication, include: [CreditProduct] }] });
   if (!loan) return 0;
   const rate = Number(loan.LoanApplication?.CreditProduct?.late_fee_rate ?? 0);
-  if (!rate || rate <= 0) return 0;
   const today = startOfDay(new Date());
   const schedules = await PaymentSchedule.findAll({
     where: { loan_id: loanId, status: { [Op.in]: ['pending','partial','overdue'] } },
@@ -48,10 +53,17 @@ async function applyLateFeesForLoan(loanId) {
   });
   let totalLate = 0;
   for (const s of schedules) {
+    const base = Math.max(Number(s.total_due || 0) - Number(s.total_paid || 0), 0);
+    if (base <= PAID_TOLERANCE) {
+      // Já paga na prática (resto é apenas arredondamento) — fecha a prestação em vez de a
+      // marcar em falta, para não ficar presa indefinidamente com juro de mora zero.
+      if (s.status !== 'paid') await s.update({ status: 'paid', paid_at: s.paid_at || new Date(), late_fee: 0 });
+      continue;
+    }
+    if (!rate || rate <= 0) continue;
     const due = startOfDay(new Date(s.due_date));
     if (due >= today) continue;
     const daysLate = Math.max(0, Math.floor((today - due) / 86400000));
-    const base = Math.max(Number(s.total_due || 0) - Number(s.total_paid || 0), 0);
     const fee = Math.round(base * rate * daysLate * 100) / 100;
     if (fee > Number(s.late_fee || 0) || s.status !== 'overdue') {
       await s.update({ late_fee: fee, status: 'overdue' });
@@ -152,7 +164,7 @@ router.get('/', authenticate, async (req, res, next) => {
     const registrarIds = [...new Set(rows.map(r => r.registered_by).filter(Boolean))];
     const registrars = registrarIds.length ? await User.findAll({ where: { id: { [Op.in]: registrarIds } }, attributes: ['id','full_name','email','role'], raw: true }) : [];
     const registrarMap = new Map(registrars.map(u => [u.id, u]));
-    const data = rows.map(r => ({ ...r.toJSON(), registered_by_user: registrarMap.get(r.registered_by) || null }));
+    const data = rows.map(r => ({ ...r.toJSON(), created_at: r.createdAt, registered_by_user: registrarMap.get(r.registered_by) || null }));
     res.json({ success:true, data, meta:{ total: count, page: parseInt(page), limit: parseInt(limit) } });
   } catch (err) { next(err); }
 });
@@ -172,7 +184,7 @@ router.post('/reconcile', authenticate, authorize('inst_admin','super_admin'), a
   catch (err) { next(err); }
 });
 
-async function reconcilePayment(tx, actor = null) {
+async function reconcilePayment(tx, actor = null, opts = {}) {
   let amountLeft = parseFloat(tx.amount || 0);
   const allSchedules = await PaymentSchedule.findAll({ where: { loan_id: tx.loan_id }, order: [['due_date','ASC']] });
   const payableSchedules = allSchedules.filter(s => ['pending','partial','overdue'].includes(s.status));
@@ -184,10 +196,11 @@ async function reconcilePayment(tx, actor = null) {
     const pay = Math.min(amountLeft, remaining);
     if (pay <= 0) continue;
     const newPaid = parseFloat(schedule.total_paid || 0) + pay;
+    const isPaid = newPaid >= dueWithLate - PAID_TOLERANCE;
     await schedule.update({
       total_paid: newPaid,
-      status: newPaid >= dueWithLate ? 'paid' : 'partial',
-      paid_at: newPaid >= dueWithLate ? new Date() : null,
+      status: isPaid ? 'paid' : 'partial',
+      paid_at: isPaid ? new Date() : null,
     });
     amountLeft -= pay;
   }
@@ -216,8 +229,68 @@ async function reconcilePayment(tx, actor = null) {
     });
   }
   await tx.update({ reconciled: true, reconciled_at: new Date() });
-  try { const { triggerEvent } = require('../services/notification/notificationService'); await triggerEvent('payment_received', { institutionId: tx.institution_id, clientId: tx.client_id, data: { amount: tx.amount, reference: tx.reference, method: tx.method } }); } catch(e) {}
+  if (!opts.silent) {
+    try { const { triggerEvent } = require('../services/notification/notificationService'); await triggerEvent('payment_received', { institutionId: tx.institution_id, clientId: tx.client_id, data: { amount: tx.amount, reference: tx.reference, method: tx.method } }); } catch(e) {}
+  }
 }
+
+// Reconstrói o estado do empréstimo (prestações + total pago) a partir do zero, substituindo
+// todas as transacções ainda confirmadas por ordem cronológica. Usado depois de editar ou
+// cancelar um pagamento, já que a alocação FIFO original não guarda qual prestação cada
+// transacção específica pagou — refazer tudo é a forma segura de reverter/ajustar sem
+// corromper o histórico das outras transacções que continuam válidas.
+async function rebuildLoanFromTransactions(loanId) {
+  const schedules = await PaymentSchedule.findAll({ where: { loan_id: loanId } });
+  for (const s of schedules) {
+    await s.update({ total_paid: 0, status: 'pending', late_fee: 0, paid_at: null });
+  }
+  const loan = await Loan.findByPk(loanId);
+  if (!loan) return;
+  await loan.update({ total_paid: 0, installments_paid: 0, status: loan.status === 'completed' ? 'active' : loan.status });
+
+  const activeTxs = await PaymentTransaction.findAll({
+    where: { loan_id: loanId, status: 'confirmed' },
+    order: [['created_at', 'ASC']],
+  });
+  for (const tx of activeTxs) {
+    await reconcilePayment(tx, null, { silent: true });
+  }
+  await applyLateFeesForLoan(loanId);
+}
+
+router.post('/:id/cancel', authenticate, authorize('inst_admin', 'super_admin'), audit('payment_cancelled'), async (req, res, next) => {
+  try {
+    const tx = await PaymentTransaction.findByPk(req.params.id, { include: [Loan] });
+    if (!tx) return res.status(404).json({ success: false, message: 'Pagamento não encontrado' });
+    if (!await assertLoanAccess(req, tx.Loan)) return res.status(403).json({ success: false, message: 'Acesso negado' });
+    if (tx.status === 'reversed') return res.status(400).json({ success: false, message: 'Este pagamento já está cancelado' });
+    if (tx.status !== 'confirmed') return res.status(400).json({ success: false, message: 'Só é possível cancelar pagamentos confirmados' });
+    await tx.update({ status: 'reversed', cancelled_at: new Date(), cancelled_by: req.user.id, cancel_reason: req.body?.reason || null });
+    await rebuildLoanFromTransactions(tx.loan_id);
+    res.json({ success: true, message: 'Pagamento cancelado. Total pago e prestações foram actualizados.', data: tx });
+  } catch (err) { next(err); }
+});
+
+router.patch('/:id', authenticate, authorize('inst_admin', 'super_admin'), audit('payment_edited'), async (req, res, next) => {
+  try {
+    const tx = await PaymentTransaction.findByPk(req.params.id, { include: [Loan] });
+    if (!tx) return res.status(404).json({ success: false, message: 'Pagamento não encontrado' });
+    if (!await assertLoanAccess(req, tx.Loan)) return res.status(403).json({ success: false, message: 'Acesso negado' });
+    if (tx.status !== 'confirmed') return res.status(400).json({ success: false, message: 'Só é possível editar pagamentos confirmados' });
+    const { amount, method, external_reference, phone_number } = req.body;
+    const changes = { edited_at: new Date(), edited_by: req.user.id };
+    if (amount != null && Number(amount) > 0 && Number(amount) !== Number(tx.amount)) {
+      if (tx.original_amount == null) changes.original_amount = tx.amount;
+      changes.amount = amount;
+    }
+    if (method) changes.method = method;
+    if (external_reference !== undefined) changes.external_reference = external_reference;
+    if (phone_number !== undefined) changes.phone_number = phone_number;
+    await tx.update(changes);
+    await rebuildLoanFromTransactions(tx.loan_id);
+    res.json({ success: true, message: 'Pagamento actualizado e saldo do empréstimo recalculado.', data: tx });
+  } catch (err) { next(err); }
+});
 
 module.exports = router;
 module.exports.applyLateFeesForLoan = applyLateFeesForLoan;
