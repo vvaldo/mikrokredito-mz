@@ -310,3 +310,4 @@ router.patch('/:id', authenticate, authorize('inst_admin', 'super_admin'), audit
 
 module.exports = router;
 module.exports.applyLateFeesForLoan = applyLateFeesForLoan;
+module.exports.rebuildLoanFromTransactions = rebuildLoanFromTransactions;

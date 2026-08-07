@@ -98,6 +98,22 @@ function computeLoanFinancialSummary(loanJson) {
   };
 }
 
+// Detecta empréstimos cujo total pago (loan.total_paid) ficou dessincronizado da soma real
+// paga em cada prestação — sintoma de um pagamento antigo que nunca chegou a ser alocado a
+// nenhuma prestação (bug já corrigido em payments.js, mas que pode ter deixado empréstimos
+// já existentes num estado inconsistente). Repara automaticamente ao detectar, sem exigir
+// que o utilizador edite manualmente um pagamento para forçar o recálculo.
+async function repairLoanIfDrifted(loanId, loanJson) {
+  const scheduleTotal = (loanJson.PaymentSchedules || []).reduce((s, p) => s + Number(p.total_paid || 0), 0);
+  const loanTotal = Number(loanJson.total_paid || 0);
+  if (Math.abs(loanTotal - scheduleTotal) <= 1) return false;
+  try {
+    const { rebuildLoanFromTransactions } = require('./payments');
+    await rebuildLoanFromTransactions(loanId);
+    return true;
+  } catch (e) { return false; }
+}
+
 async function normalizeLoanStatusIfNeeded(loan, summary) {
   if (!loan || !summary) return;
   const updates = {};
@@ -222,8 +238,17 @@ router.get('/active/list', authenticate, async (req, res, next) => {
     });
 
     const normalizedLoans = [];
-    for (const loan of loans) {
-      const json = loan.toJSON();
+    for (let loan of loans) {
+      let json = loan.toJSON();
+      if (await repairLoanIfDrifted(loan.id, json)) {
+        loan = await Loan.findByPk(loan.id, {
+          include: [
+            { model: LoanApplication, include: [{ model: CreditProduct }, { model: Document }, { model: Client, include: [{ model: User, attributes: ['full_name','email','phone'] }] }] },
+            { model: PaymentSchedule, order: [['installment_number','ASC']] },
+          ],
+        });
+        json = loan.toJSON();
+      }
       if (json.LoanApplication) {
         json.LoanApplication = await enrichApplicationsWithProfileDocuments(json.LoanApplication);
       }
