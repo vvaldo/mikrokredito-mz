@@ -184,7 +184,11 @@ router.post('/reconcile', authenticate, authorize('inst_admin','super_admin'), a
   catch (err) { next(err); }
 });
 
-async function reconcilePayment(tx, actor = null, opts = {}) {
+// Aloca o valor de UMA transacção contra as prestações ainda por pagar do empréstimo (FIFO
+// por data de vencimento). Só actualiza as prestações — quem chama é responsável por
+// recalcular os totais do empréstimo a seguir (recomputeLoanTotals), para que o total pago
+// nunca fique dependente de esta alocação ter "encaixado" nalguma prestação.
+async function allocateTransactionToSchedules(tx) {
   let amountLeft = parseFloat(tx.amount || 0);
   const allSchedules = await PaymentSchedule.findAll({ where: { loan_id: tx.loan_id }, order: [['due_date','ASC']] });
   const payableSchedules = allSchedules.filter(s => ['pending','partial','overdue'].includes(s.status));
@@ -204,30 +208,41 @@ async function reconcilePayment(tx, actor = null, opts = {}) {
     });
     amountLeft -= pay;
   }
+}
 
-  const loan = await Loan.findByPk(tx.loan_id, { include: [{ model: LoanApplication, include: [{ model: Client, include: [User] }] }] });
-  if (loan) {
-    const schedulesAfter = await PaymentSchedule.findAll({ where: { loan_id: tx.loan_id } });
-    const scheduleTotal = schedulesAfter.reduce((sum, s) => sum + parseFloat(s.total_due || 0) + parseFloat(s.late_fee || 0), 0);
-    const contractTotal = Math.max(
-      scheduleTotal,
-      parseFloat(loan.LoanApplication?.total_repayable || 0),
-      parseFloat(loan.principal || 0),
-    );
-    const previousPaid = parseFloat(loan.total_paid || 0);
-    const newTotalPaid = previousPaid + parseFloat(tx.amount || 0);
-    const newBalance = Math.max(contractTotal - newTotalPaid, 0);
-    const paidSchedules = await PaymentSchedule.count({ where: { loan_id: tx.loan_id, status: 'paid' } });
-    const allInstallmentsPaid = schedulesAfter.length > 0 && paidSchedules >= schedulesAfter.length;
-    const isLiquidated = newBalance <= 0 && (schedulesAfter.length === 0 || allInstallmentsPaid);
+// Recalcula outstanding_balance/total_paid/installments_paid/status do empréstimo a partir do
+// estado ACTUAL das prestações e da SOMA real das transacções confirmadas — nunca por
+// incremento (previousPaid + tx.amount). Um incremento cego permitia o total pago do
+// empréstimo subir mesmo quando a alocação à prestação falhava (ex.: prestações ainda não
+// geradas nesse instante), ficando o valor "perdido": contava no total mas não em nenhuma
+// prestação, exactamente o sintoma de pagamentos que não se "juntam".
+async function recomputeLoanTotals(loanId) {
+  const loan = await Loan.findByPk(loanId, { include: [{ model: LoanApplication }] });
+  if (!loan) return;
+  const schedulesAfter = await PaymentSchedule.findAll({ where: { loan_id: loanId } });
+  const scheduleTotal = schedulesAfter.reduce((sum, s) => sum + parseFloat(s.total_due || 0) + parseFloat(s.late_fee || 0), 0);
+  const contractTotal = Math.max(
+    scheduleTotal,
+    parseFloat(loan.LoanApplication?.total_repayable || 0),
+    parseFloat(loan.principal || 0),
+  );
+  const confirmedTotal = parseFloat(await PaymentTransaction.sum('amount', { where: { loan_id: loanId, status: 'confirmed' } }) || 0);
+  const newBalance = Math.max(contractTotal - confirmedTotal, 0);
+  const paidSchedules = schedulesAfter.filter(s => s.status === 'paid').length;
+  const allInstallmentsPaid = schedulesAfter.length > 0 && paidSchedules >= schedulesAfter.length;
+  const isLiquidated = newBalance <= 0 && (schedulesAfter.length === 0 || allInstallmentsPaid);
 
-    await loan.update({
-      outstanding_balance: newBalance,
-      total_paid: newTotalPaid,
-      installments_paid: paidSchedules,
-      status: isLiquidated ? 'completed' : (loan.status === 'completed' ? 'active' : loan.status),
-    });
-  }
+  await loan.update({
+    outstanding_balance: newBalance,
+    total_paid: confirmedTotal,
+    installments_paid: paidSchedules,
+    status: isLiquidated ? 'completed' : (loan.status === 'completed' ? 'active' : loan.status),
+  });
+}
+
+async function reconcilePayment(tx, actor = null, opts = {}) {
+  await allocateTransactionToSchedules(tx);
+  await recomputeLoanTotals(tx.loan_id);
   await tx.update({ reconciled: true, reconciled_at: new Date() });
   if (!opts.silent) {
     try { const { triggerEvent } = require('../services/notification/notificationService'); await triggerEvent('payment_received', { institutionId: tx.institution_id, clientId: tx.client_id, data: { amount: tx.amount, reference: tx.reference, method: tx.method } }); } catch(e) {}
@@ -236,9 +251,8 @@ async function reconcilePayment(tx, actor = null, opts = {}) {
 
 // Reconstrói o estado do empréstimo (prestações + total pago) a partir do zero, substituindo
 // todas as transacções ainda confirmadas por ordem cronológica. Usado depois de editar ou
-// cancelar um pagamento, já que a alocação FIFO original não guarda qual prestação cada
-// transacção específica pagou — refazer tudo é a forma segura de reverter/ajustar sem
-// corromper o histórico das outras transacções que continuam válidas.
+// cancelar um pagamento (e também serve para reparar empréstimos cujo total pago tenha
+// ficado dessincronizado das prestações por qualquer motivo histórico).
 async function rebuildLoanFromTransactions(loanId) {
   const schedules = await PaymentSchedule.findAll({ where: { loan_id: loanId } });
   for (const s of schedules) {
@@ -246,15 +260,17 @@ async function rebuildLoanFromTransactions(loanId) {
   }
   const loan = await Loan.findByPk(loanId);
   if (!loan) return;
-  await loan.update({ total_paid: 0, installments_paid: 0, status: loan.status === 'completed' ? 'active' : loan.status });
+  await loan.update({ status: loan.status === 'completed' ? 'active' : loan.status });
 
   const activeTxs = await PaymentTransaction.findAll({
     where: { loan_id: loanId, status: 'confirmed' },
     order: [['created_at', 'ASC']],
   });
   for (const tx of activeTxs) {
-    await reconcilePayment(tx, null, { silent: true });
+    await allocateTransactionToSchedules(tx);
+    if (!tx.reconciled) await tx.update({ reconciled: true, reconciled_at: new Date() });
   }
+  await recomputeLoanTotals(loanId);
   await applyLateFeesForLoan(loanId);
 }
 
