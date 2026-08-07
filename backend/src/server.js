@@ -8,6 +8,21 @@ const logger = require('./utils/logger');
 
 const PORT = process.env.PORT || 3000;
 
+// Colunas novas e aditivas (nunca alteram/apagam dados existentes) que precisam de existir
+// mesmo em produção, onde sequelize.sync({alter:true}) é deliberadamente desligado. Usa
+// ADD COLUMN IF NOT EXISTS para ser seguro correr em todos os arranques, em qualquer ambiente.
+async function ensureSchemaPatches() {
+  const statements = [
+    `ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS original_amount DECIMAL(15,2)`,
+    `ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS edited_at TIMESTAMP WITH TIME ZONE`,
+    `ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS edited_by UUID`,
+    `ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE`,
+    `ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS cancelled_by UUID`,
+    `ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS cancel_reason TEXT`,
+  ];
+  for (const sql of statements) await sequelize.query(sql);
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
@@ -20,6 +35,7 @@ async function start() {
       // Garante que tabelas novas (ex.: platform_settings) existem também em produção,
       // sem tocar no schema de tabelas já existentes.
       await PlatformSetting.sync();
+      await ensureSchemaPatches();
     }
 
     await initQueues();
