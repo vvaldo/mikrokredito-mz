@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, query, param, validationResult } = require('express-validator');
-const { LoanApplication, Loan, PaymentSchedule, CreditProduct, Client, User, Document, NotificationLog } = require('../models');
+const { LoanApplication, Loan, PaymentSchedule, PaymentAllocation, CreditProduct, Client, User, Document, NotificationLog } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
 const { calculateLoan, generateSchedule, updateApplicationStatus } = require('../services/loanService');
@@ -105,8 +105,13 @@ function computeLoanFinancialSummary(loanJson) {
 // que o utilizador edite manualmente um pagamento para forçar o recálculo.
 async function repairLoanIfDrifted(loanId, loanJson) {
   const scheduleTotal = (loanJson.PaymentSchedules || []).reduce((s, p) => s + Number(p.total_paid || 0), 0);
+  // Um excedente que não coube em nenhuma prestação (ex.: empréstimo quase liquidado) fica
+  // registado como adiantamento explícito (payment_schedule_id nulo) — não é um sintoma de
+  // dessincronização, por isso conta para a reconciliação e não deve disparar reparações
+  // repetidas a cada vez que o empréstimo é consultado.
+  const advanceTotal = Number(await PaymentAllocation.sum('amount', { where: { loan_id: loanId, payment_schedule_id: null } }) || 0);
   const loanTotal = Number(loanJson.total_paid || 0);
-  if (Math.abs(loanTotal - scheduleTotal) <= 1) return false;
+  if (Math.abs(loanTotal - scheduleTotal - advanceTotal) <= 1) return false;
   try {
     const { rebuildLoanFromTransactions } = require('./payments');
     await rebuildLoanFromTransactions(loanId);

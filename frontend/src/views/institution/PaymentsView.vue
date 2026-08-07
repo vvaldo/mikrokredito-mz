@@ -31,6 +31,12 @@
             <div><span class="muted">Submetido em</span><strong>{{ dateTime(selected.created_at) }}</strong></div>
             <div><span class="muted">Estado</span><strong><StatusBadge :status="selected.status" /></strong></div>
           </div>
+          <div v-if="!editingPay && (selected.PaymentAllocations||[]).length" style="margin-top:14px">
+            <div class="form-section">Imputado a</div>
+            <ul style="margin:0;padding-left:18px;font-size:12px">
+              <li v-for="a in selected.PaymentAllocations" :key="a.id">Prestação Nº{{ a.PaymentSchedule?.installment_number }} — {{ mzn(a.amount) }}</li>
+            </ul>
+          </div>
           <form v-else class="form-grid" @submit.prevent="saveEditPay">
             <label class="field"><span>Valor pago</span><input class="input" type="number" v-model.number="editForm.amount" required></label>
             <label class="field"><span>Via de pagamento</span><select class="input" v-model="editForm.method"><option value="mpesa">M-Pesa</option><option value="emola">e-Mola</option><option value="bank_transfer">Transferência bancária</option><option value="cash">Depósito/POS</option><option value="reference">Referência</option></select></label>

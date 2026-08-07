@@ -1,7 +1,7 @@
 // src/server.js
 require('dotenv').config();
 const app = require('./app');
-const { sequelize, PlatformSetting } = require('./models');
+const { sequelize, PlatformSetting, PaymentAllocation } = require('./models');
 const { initQueues } = require('./queues');
 const whatsappClient = require('./services/whatsapp/whatsappClient');
 const logger = require('./utils/logger');
@@ -19,8 +19,12 @@ async function ensureSchemaPatches() {
     `ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP WITH TIME ZONE`,
     `ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS cancelled_by UUID`,
     `ALTER TABLE payment_transactions ADD COLUMN IF NOT EXISTS cancel_reason TEXT`,
+    `ALTER TABLE payment_schedules ADD COLUMN IF NOT EXISTS late_fee_accrued_through TIMESTAMP WITH TIME ZONE`,
   ];
   for (const sql of statements) await sequelize.query(sql);
+  // Tabela nova (payment_allocations) — .sync() só cria se ainda não existir, nunca altera
+  // tabelas já criadas, tal como platform_settings acima.
+  await PaymentAllocation.sync();
 }
 
 async function start() {

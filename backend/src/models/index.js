@@ -206,6 +206,7 @@ const PaymentSchedule = sequelize.define('PaymentSchedule', {
   interest_paid: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
   total_paid: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
   late_fee: { type: DataTypes.DECIMAL(15, 2), defaultValue: 0 },
+  late_fee_accrued_through: { type: DataTypes.DATE, comment: 'Checkpoint até onde a mora já foi calculada — mora acresce incrementalmente a partir daqui, nunca é recalculada do zero.' },
   status: { type: DataTypes.ENUM('pending', 'partial', 'paid', 'overdue'), defaultValue: 'pending' },
   paid_at: DataTypes.DATE,
 }, { tableName: 'payment_schedules', timestamps: true, underscored: true });
@@ -243,6 +244,19 @@ const PaymentTransaction = sequelize.define('PaymentTransaction', {
   cancelled_by: DataTypes.UUID,
   cancel_reason: DataTypes.TEXT,
 }, { tableName: 'payment_transactions', timestamps: true, underscored: true });
+
+// ─────────────────────────────────────────────
+// PAYMENT ALLOCATION (auditoria: a que prestação(ões) cada transacção foi imputada)
+// ─────────────────────────────────────────────
+const PaymentAllocation = sequelize.define('PaymentAllocation', {
+  id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
+  loan_id: { type: DataTypes.UUID, allowNull: false },
+  payment_transaction_id: { type: DataTypes.UUID, allowNull: false },
+  // null = adiantamento/excedente ainda não imputado a nenhuma prestação (ex.: pagamento que
+  // ultrapassou o saldo de todas as prestações em aberto) — nunca fica "perdido" em silêncio.
+  payment_schedule_id: { type: DataTypes.UUID, allowNull: true },
+  amount: { type: DataTypes.DECIMAL(15, 2), allowNull: false },
+}, { tableName: 'payment_allocations', timestamps: true, underscored: true });
 
 // ─────────────────────────────────────────────
 // NOTIFICATION TEMPLATE
@@ -373,6 +387,11 @@ PaymentSchedule.belongsTo(Loan, { foreignKey: 'loan_id' });
 Loan.hasMany(PaymentTransaction, { foreignKey: 'loan_id' });
 PaymentTransaction.belongsTo(Loan, { foreignKey: 'loan_id' });
 
+PaymentTransaction.hasMany(PaymentAllocation, { foreignKey: 'payment_transaction_id' });
+PaymentAllocation.belongsTo(PaymentTransaction, { foreignKey: 'payment_transaction_id' });
+PaymentSchedule.hasMany(PaymentAllocation, { foreignKey: 'payment_schedule_id' });
+PaymentAllocation.belongsTo(PaymentSchedule, { foreignKey: 'payment_schedule_id' });
+
 Institution.hasMany(NotificationTemplate, { foreignKey: 'institution_id' });
 Institution.hasMany(NotificationRule, { foreignKey: 'institution_id' });
 Institution.hasMany(NotificationLog, { foreignKey: 'institution_id' });
@@ -381,7 +400,7 @@ module.exports = {
   sequelize,
   Institution, User, Client, Document,
   CreditProduct, LoanApplication, Loan,
-  PaymentSchedule, PaymentTransaction,
+  PaymentSchedule, PaymentTransaction, PaymentAllocation,
   NotificationTemplate, NotificationRule, NotificationLog,
   AuditLog, PlatformSetting,
 };

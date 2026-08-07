@@ -3,13 +3,14 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const { PaymentTransaction, Loan, PaymentSchedule, Client, User, LoanApplication, CreditProduct } = require('../models');
+const { PaymentTransaction, Loan, PaymentSchedule, PaymentAllocation, Client, User, LoanApplication, CreditProduct } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
 const { audit } = require('../middleware/audit');
 const { v4: uuidv4 } = require('uuid');
 const logger = require('../utils/logger');
 const { Op, fn, col, literal } = require('sequelize');
 const { notifyAffectedUser } = require('../services/userActionNotifier');
+const { applyPaymentToSchedules, accrueOpenSchedules } = require('../services/loanAccounting');
 
 const receiptDir = path.join(__dirname, '..', '..', 'uploads', 'receipts');
 const storage = multer.diskStorage({
@@ -36,43 +37,57 @@ function startOfWeek(d){ const x=startOfDay(d); const day=x.getDay()||7; x.setDa
 function startOfMonth(d){ return new Date(d.getFullYear(), d.getMonth(), 1); }
 function startOfYear(d){ return new Date(d.getFullYear(), 0, 1); }
 
-// A UI só mostra Meticais sem casas decimais (maximumFractionDigits:0), mas os valores
-// internamente têm 2 casas decimais. Um pagamento digitado a olhar para o valor arredondado
-// pode ficar a cêntimos do valor exacto — sem esta tolerância essa prestação nunca atinge
-// 'paid' e fica presa em 'overdue' para sempre, mesmo já estando paga aos olhos do utilizador.
-const PAID_TOLERANCE = 1;
+// A imputação de pagamentos e o cálculo de juros de mora vivem em src/services/loanAccounting.js
+// como funções puras (testadas em tests/loanAccounting.test.js) — aqui só se faz a ponte com a
+// base de dados: ler o estado actual, chamar a função pura, e gravar o resultado.
 
-async function applyLateFeesForLoan(loanId, asOf = new Date()) {
+async function getLoanLateFeeRate(loanId) {
   const loan = await Loan.findByPk(loanId, { include: [{ model: LoanApplication, include: [CreditProduct] }] });
-  if (!loan) return 0;
-  const rate = Number(loan.LoanApplication?.CreditProduct?.late_fee_rate ?? 0);
-  const today = startOfDay(asOf);
-  const schedules = await PaymentSchedule.findAll({
-    where: { loan_id: loanId, status: { [Op.in]: ['pending','partial','overdue'] } },
-    order: [['due_date','ASC']],
-  });
-  let totalLate = 0;
-  for (const s of schedules) {
-    const base = Math.max(Number(s.total_due || 0) - Number(s.total_paid || 0), 0);
-    if (base <= PAID_TOLERANCE) {
-      // Já paga na prática (resto é apenas arredondamento) — fecha a prestação em vez de a
-      // marcar em falta, para não ficar presa indefinidamente com juro de mora zero.
-      if (s.status !== 'paid') await s.update({ status: 'paid', paid_at: s.paid_at || new Date(), late_fee: 0 });
-      continue;
+  return { loan, rate: Number(loan?.LoanApplication?.CreditProduct?.late_fee_rate ?? 0) };
+}
+
+async function persistScheduleChanges(scheduleInstances, updatedPlain) {
+  for (const updated of updatedPlain) {
+    const original = scheduleInstances.find(s => s.id === updated.id);
+    if (!original) continue;
+    if (
+      Number(original.total_paid) !== Number(updated.total_paid) ||
+      Number(original.late_fee) !== Number(updated.late_fee) ||
+      original.status !== updated.status
+    ) {
+      await original.update({
+        total_paid: updated.total_paid,
+        late_fee: updated.late_fee,
+        late_fee_accrued_through: updated.late_fee_accrued_through,
+        status: updated.status,
+        paid_at: updated.paid_at,
+      });
     }
-    if (!rate || rate <= 0) continue;
-    const due = startOfDay(new Date(s.due_date));
-    if (due >= today) continue;
-    const daysLate = Math.max(0, Math.floor((today - due) / 86400000));
-    const fee = Math.round(base * rate * daysLate * 100) / 100;
-    if (fee > Number(s.late_fee || 0) || s.status !== 'overdue') {
-      await s.update({ late_fee: fee, status: 'overdue' });
-    }
-    totalLate += fee;
   }
-  const overdueCount = schedules.filter(s => new Date(s.due_date) < today && s.status !== 'paid').length;
-  if (overdueCount > 0 && loan.status === 'active') await loan.update({ status: 'overdue', days_overdue: Math.max(...schedules.map(s => Math.floor((today - startOfDay(new Date(s.due_date))) / 86400000)).filter(n => n > 0), 0) });
-  return totalLate;
+}
+
+// Só acresce mora (sem imputar nenhum pagamento) às prestações em aberto/vencidas de um
+// empréstimo, até `asOf`. Usado para manter a mora em dia quando não há um pagamento novo a
+// processar (ex.: ao listar /payments ou /loans) e como último passo depois de reproduzir o
+// histórico completo de transacções. Devolve a mora total actualmente em aberto no empréstimo.
+async function applyLateFeesForLoan(loanId, asOf = new Date()) {
+  const { loan, rate } = await getLoanLateFeeRate(loanId);
+  if (!loan) return 0;
+  const scheduleInstances = await PaymentSchedule.findAll({
+    where: { loan_id: loanId, status: { [Op.in]: ['pending', 'partial', 'overdue'] } },
+    order: [['due_date', 'ASC']],
+  });
+  const plain = scheduleInstances.map(s => s.toJSON());
+  const after = accrueOpenSchedules(plain, rate, asOf);
+  await persistScheduleChanges(scheduleInstances, after);
+
+  const today = startOfDay(asOf);
+  const overdueCount = after.filter(s => new Date(s.due_date) < today && s.status !== 'paid').length;
+  if (overdueCount > 0 && loan.status === 'active') {
+    const daysOverdue = Math.max(...after.map(s => Math.floor((today - startOfDay(new Date(s.due_date))) / 86400000)).filter(n => n > 0), 0);
+    await loan.update({ status: 'overdue', days_overdue: daysOverdue });
+  }
+  return after.reduce((sum, s) => sum + Number(s.late_fee || 0), 0);
 }
 
 async function applyLateFees(scopeWhere = {}) {
@@ -158,7 +173,10 @@ router.get('/', authenticate, async (req, res, next) => {
     if (req.user.role === 'client') { const client = await Client.findOne({ where: { user_id: req.user.id } }); where.client_id = client?.id; }
     const { count, rows } = await PaymentTransaction.findAndCountAll({
       where,
-      include: [{ model: Loan, include: [{ model: LoanApplication, include: [{ model: Client, include: [{ model: User, attributes: ['full_name','email','phone'] }] }, CreditProduct] }] }],
+      include: [
+        { model: Loan, include: [{ model: LoanApplication, include: [{ model: Client, include: [{ model: User, attributes: ['full_name','email','phone'] }] }, CreditProduct] }] },
+        { model: PaymentAllocation, include: [{ model: PaymentSchedule, attributes: ['id','installment_number','due_date'] }] },
+      ],
       order: [['created_at','DESC']], limit: Math.min(parseInt(limit), 200000), offset: (parseInt(page)-1)*parseInt(limit),
     });
     const registrarIds = [...new Set(rows.map(r => r.registered_by).filter(Boolean))];
@@ -184,30 +202,46 @@ router.post('/reconcile', authenticate, authorize('inst_admin','super_admin'), a
   catch (err) { next(err); }
 });
 
-// Aloca o valor de UMA transacção contra as prestações ainda por pagar do empréstimo (FIFO
-// por data de vencimento). Só actualiza as prestações — quem chama é responsável por
-// recalcular os totais do empréstimo a seguir (recomputeLoanTotals), para que o total pago
-// nunca fique dependente de esta alocação ter "encaixado" nalguma prestação.
-async function allocateTransactionToSchedules(tx) {
-  let amountLeft = parseFloat(tx.amount || 0);
-  const allSchedules = await PaymentSchedule.findAll({ where: { loan_id: tx.loan_id }, order: [['due_date','ASC']] });
-  const payableSchedules = allSchedules.filter(s => ['pending','partial','overdue'].includes(s.status));
+// Aloca o valor de UMA transacção contra as prestações do empréstimo, seguindo a regra:
+// FIFO por data de vencimento, acrescendo mora até `asOf` antes de tentar liquidar cada
+// prestação, e só avançando para a prestação seguinte quando a corrente ficar 100% coberta
+// (capital+juros+mora) — nunca "salta" dinheiro para a prestação seguinte só por esta já ter
+// atingido o valor originalmente previsto. Regista cada fatia em PaymentAllocation para
+// auditoria (a que prestação(ões) esta transacção foi imputada). Só actualiza as prestações —
+// quem chama é responsável por recalcular os totais do empréstimo a seguir
+// (recomputeLoanTotals), para que o total pago nunca fique dependente de a alocação ter
+// "encaixado" nalguma prestação.
+async function allocateTransactionToSchedules(tx, asOf) {
+  const { rate } = await getLoanLateFeeRate(tx.loan_id);
+  const scheduleInstances = await PaymentSchedule.findAll({ where: { loan_id: tx.loan_id }, order: [['due_date', 'ASC']] });
+  const plain = scheduleInstances.map(s => s.toJSON());
+  const { schedules: after, allocations, unallocated } = applyPaymentToSchedules(plain, tx.amount, asOf || tx.createdAt || new Date(), rate);
 
-  for (const schedule of payableSchedules) {
-    if (amountLeft <= 0) break;
-    const dueWithLate = parseFloat(schedule.total_due || 0) + parseFloat(schedule.late_fee || 0);
-    const remaining = Math.max(dueWithLate - parseFloat(schedule.total_paid || 0), 0);
-    const pay = Math.min(amountLeft, remaining);
-    if (pay <= 0) continue;
-    const newPaid = parseFloat(schedule.total_paid || 0) + pay;
-    const isPaid = newPaid >= dueWithLate - PAID_TOLERANCE;
-    await schedule.update({
-      total_paid: newPaid,
-      status: isPaid ? 'paid' : 'partial',
-      paid_at: isPaid ? new Date() : null,
+  await persistScheduleChanges(scheduleInstances, after);
+
+  for (const a of allocations) {
+    if (a.amount <= 0) continue;
+    await PaymentAllocation.create({
+      loan_id: tx.loan_id,
+      payment_transaction_id: tx.id,
+      payment_schedule_id: a.schedule_id,
+      amount: a.amount,
     });
-    amountLeft -= pay;
   }
+
+  if (unallocated > 0) {
+    // Excedente que não coube em nenhuma prestação em aberto (ex.: empréstimo praticamente
+    // liquidado) — fica explicitamente registado como adiantamento, nunca "perdido" em
+    // silêncio nem contado como se tivesse liquidado uma prestação que não liquidou.
+    await PaymentAllocation.create({
+      loan_id: tx.loan_id,
+      payment_transaction_id: tx.id,
+      payment_schedule_id: null,
+      amount: unallocated,
+    });
+  }
+
+  return unallocated;
 }
 
 // Recalcula outstanding_balance/total_paid/installments_paid/status do empréstimo a partir do
@@ -241,7 +275,7 @@ async function recomputeLoanTotals(loanId) {
 }
 
 async function reconcilePayment(tx, actor = null, opts = {}) {
-  await allocateTransactionToSchedules(tx);
+  await allocateTransactionToSchedules(tx, tx.createdAt || new Date());
   await recomputeLoanTotals(tx.loan_id);
   await tx.update({ reconciled: true, reconciled_at: new Date() });
   if (!opts.silent) {
@@ -249,15 +283,24 @@ async function reconcilePayment(tx, actor = null, opts = {}) {
   }
 }
 
-// Reconstrói o estado do empréstimo (prestações + total pago) a partir do zero, substituindo
-// todas as transacções ainda confirmadas por ordem cronológica. Usado depois de editar ou
-// cancelar um pagamento (e também serve para reparar empréstimos cujo total pago tenha
-// ficado dessincronizado das prestações por qualquer motivo histórico).
+// Reconstrói o estado do empréstimo (prestações + mora + total pago) a partir do zero,
+// reproduzindo um verdadeiro REPLAY CRONOLÓGICO de todas as transacções ainda confirmadas,
+// por ordem de data/hora. Usado depois de editar ou cancelar um pagamento, e também serve
+// para reparar empréstimos cujo total pago tenha ficado dessincronizado das prestações por
+// qualquer motivo histórico (ver repairLoanIfDrifted em loans.js).
+//
+// Cada transacção é alocada usando a SUA PRÓPRIA data (allocateTransactionToSchedules já
+// acresce a mora até essa data antes de imputar o valor) — a mora nunca é zerada e recalculada
+// só no fim; é reconstruída incrementalmente tal como aconteceu na realidade. Isto garante que
+// uma prestação só é liquidada quando capital+juros+mora estiverem 100% cobertos à data de
+// cada pagamento, e que dinheiro nunca "salta" para a prestação seguinte antes disso.
 async function rebuildLoanFromTransactions(loanId) {
   const schedules = await PaymentSchedule.findAll({ where: { loan_id: loanId } });
   for (const s of schedules) {
-    await s.update({ total_paid: 0, status: 'pending', late_fee: 0, paid_at: null });
+    await s.update({ total_paid: 0, late_fee: 0, late_fee_accrued_through: null, status: 'pending', paid_at: null });
   }
+  await PaymentAllocation.destroy({ where: { loan_id: loanId } });
+
   const loan = await Loan.findByPk(loanId);
   if (!loan) return;
   await loan.update({ status: loan.status === 'completed' ? 'active' : loan.status });
@@ -267,14 +310,12 @@ async function rebuildLoanFromTransactions(loanId) {
     order: [['created_at', 'ASC']],
   });
   for (const tx of activeTxs) {
-    // Traz a mora em dia à data de CADA pagamento (não só à data de hoje), para que um
-    // pagamento que só liquidou o capital+juros mas chegou depois do vencimento continue a
-    // reconhecer a mora já vencida nesse momento em vez de a apagar do histórico.
-    await applyLateFeesForLoan(loanId, tx.createdAt || tx.created_at);
-    await allocateTransactionToSchedules(tx);
+    await allocateTransactionToSchedules(tx, tx.createdAt || tx.created_at);
     if (!tx.reconciled) await tx.update({ reconciled: true, reconciled_at: new Date() });
   }
   await recomputeLoanTotals(loanId);
+  // Depois de reproduzir todo o histórico, acresce mora das prestações vencidas que ainda
+  // continuem em aberto até à data actual.
   await applyLateFeesForLoan(loanId);
 }
 
