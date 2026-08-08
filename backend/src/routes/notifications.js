@@ -4,7 +4,7 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const { NotificationTemplate, NotificationRule, NotificationLog } = require('../models');
 const { authenticate, authorize } = require('../middleware/auth');
-const { retryFailed, getStats, triggerEvent } = require('../services/notification/notificationService');
+const { retryFailed, getStats, testSend } = require('../services/notification/notificationService');
 const { Op } = require('sequelize');
 
 const validate = (req, res, next) => {
@@ -225,10 +225,21 @@ router.post('/retry/:id', authenticate, authorize('inst_admin', 'super_admin'), 
     if (!log) return res.status(404).json({ success: false, message: 'Log não encontrado' });
 
     const { notificationQueue } = require('../queues');
-    await notificationQueue.add('send-notification', { logId: log.id }, { attempts: 1 });
-    await log.update({ status: 'queued', next_retry_at: new Date() });
+    if (notificationQueue) {
+      await notificationQueue.add('send-notification', { logId: log.id }, { attempts: 1 });
+      await log.update({ status: 'queued', next_retry_at: new Date() });
+      return res.json({ success: true, message: 'Notificação colocada em fila para reenvio' });
+    }
 
-    res.json({ success: true, message: 'Notificação colocada em fila para reenvio' });
+    // Sem Redis — reenvia de imediato (síncrono) e devolve o resultado real, tal como o
+    // fallback já usado em triggerEvent/retryFailed.
+    const { sendNotification } = require('../services/notification/notificationService');
+    try {
+      await sendNotification(log.id);
+      res.json({ success: true, message: 'Notificação reenviada com sucesso.' });
+    } catch (sendErr) {
+      res.status(502).json({ success: false, message: `Falha ao reenviar: ${sendErr.message}` });
+    }
   } catch (err) { next(err); }
 });
 
@@ -245,23 +256,37 @@ router.get('/stats', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-// Test notification
+// "🧪 Testar envio" — envio REAL e síncrono (nunca apenas "colocado em fila"): resolve o
+// template exacto (por id, ou por evento+canal), envia-o de imediato pelo provedor verdadeiro
+// e devolve o resultado/erro real. Aceita um template_id explícito (o que a UI do editor usa,
+// para testar exactamente o template que está a ser editado, mesmo antes de o gravar como
+// activo) ou event+channel (resolve o template activo tal como qualquer trigger normal).
 router.post('/test',
   authenticate,
   authorize('inst_admin', 'super_admin'),
-  [body('event').notEmpty(), body('channel').isIn(['email', 'sms', 'whatsapp'])],
+  [
+    body('channel').isIn(['email', 'sms', 'whatsapp']),
+    body('recipient').notEmpty(),
+    body('template_id').optional().isUUID(),
+    body('event').optional().notEmpty(),
+  ],
   validate,
   async (req, res, next) => {
     try {
-      const { event, channel, recipient, data = {} } = req.body;
-      await triggerEvent(event, {
-        institutionId: req.user.institution_id,
-        recipientEmail: channel === 'email' ? recipient : undefined,
-        recipientPhone: channel !== 'email' ? recipient : undefined,
-        data,
-      });
-      res.json({ success: true, message: 'Notificação de teste enviada' });
-    } catch (err) { next(err); }
+      const { template_id, event, channel, recipient, data = {} } = req.body;
+      if (!template_id && !event) return res.status(400).json({ success: false, message: 'Indique template_id ou event.' });
+      const institutionId = req.user.role === 'super_admin' ? req.body.institution_id : req.user.institution_id;
+
+      const result = await testSend({ templateId: template_id, event, channel, institutionId, recipient, data, testedBy: req.user.id });
+      if (result.success) {
+        res.json({ success: true, message: `✅ Envio de teste bem-sucedido via ${channel} (provedor: ${result.log.provider || '—'}).`, data: result.log });
+      } else {
+        res.status(502).json({ success: false, message: `❌ Falha real do provedor: ${result.error}`, data: result.log });
+      }
+    } catch (err) {
+      if (err.status === 404) return res.status(404).json({ success: false, message: err.message });
+      next(err);
+    }
   }
 );
 

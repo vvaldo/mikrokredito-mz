@@ -50,6 +50,21 @@ async function ensureDefaultNotificationTemplates() {
   logger.info('Templates/regras de notificação por omissão verificados.');
 }
 
+// Job diário (lembretes de vencimento, prestação vencida, início de juros de mora — ver
+// jobs/loanDeadlineJob.js). Implementado com setInterval em vez de um job repetível do Bull
+// porque a disponibilidade do Redis em produção não é garantida (ver initQueues, que já
+// degrada de forma resiliente na ausência de Redis) — isto corre sempre, independentemente do
+// Redis estar ou não configurado. Idempotente (dedupeKey por evento/prestação/marco), por isso
+// é seguro correr mais de uma vez por dia (ex.: depois de um restart) sem duplicar envios.
+function scheduleLoanDeadlineJob() {
+  const { runLoanDeadlineJob } = require('./jobs/loanDeadlineJob');
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+  const run = () => runLoanDeadlineJob().catch(err => logger.error('loanDeadlineJob falhou', { error: err.message }));
+  setTimeout(run, 60 * 1000); // primeira corrida ~1 min depois do arranque
+  setInterval(run, ONE_DAY_MS);
+  logger.info('loanDeadlineJob agendado (a cada 24h, a partir de ~1 min depois do arranque)');
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
@@ -68,6 +83,8 @@ async function start() {
 
     await initQueues();
     logger.info('Queues initialised');
+
+    scheduleLoanDeadlineJob();
 
     // Não bloqueia o arranque: só reconecta se já existir uma sessão WhatsApp gravada.
     whatsappClient.autoInitIfSessionExists().catch(err => logger.warn('WhatsApp auto-init falhou', { error: err.message }));

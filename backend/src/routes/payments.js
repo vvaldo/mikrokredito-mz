@@ -255,7 +255,7 @@ async function allocateTransactionToSchedules(tx, asOf) {
 // geradas nesse instante), ficando o valor "perdido": contava no total mas não em nenhuma
 // prestação, exactamente o sintoma de pagamentos que não se "juntam".
 async function recomputeLoanTotals(loanId) {
-  const loan = await Loan.findByPk(loanId, { include: [{ model: LoanApplication }] });
+  const loan = await Loan.findByPk(loanId, { include: [{ model: LoanApplication, include: [{ model: Client, include: [User] }] }] });
   if (!loan) return;
   const schedulesAfter = await PaymentSchedule.findAll({ where: { loan_id: loanId } });
   const scheduleTotal = schedulesAfter.reduce((sum, s) => sum + parseFloat(s.total_due || 0) + parseFloat(s.late_fee || 0), 0);
@@ -269,13 +269,30 @@ async function recomputeLoanTotals(loanId) {
   const paidSchedules = schedulesAfter.filter(s => s.status === 'paid').length;
   const allInstallmentsPaid = schedulesAfter.length > 0 && paidSchedules >= schedulesAfter.length;
   const isLiquidated = newBalance <= 0 && (schedulesAfter.length === 0 || allInstallmentsPaid);
+  const wasCompleted = loan.status === 'completed';
 
   await loan.update({
     outstanding_balance: newBalance,
     total_paid: confirmedTotal,
     installments_paid: paidSchedules,
-    status: isLiquidated ? 'completed' : (loan.status === 'completed' ? 'active' : loan.status),
+    status: isLiquidated ? 'completed' : (wasCompleted ? 'active' : loan.status),
   });
+
+  // Dispara só na TRANSIÇÃO para liquidado — nunca em cada recomputo enquanto já está
+  // 'completed' (evitaria reenviar a mesma notificação a cada novo pagamento/edição irrelevante).
+  if (isLiquidated && !wasCompleted) {
+    const user = loan.LoanApplication?.Client?.User;
+    try {
+      const { triggerEvent } = require('../services/notification/notificationService');
+      await triggerEvent('loan_completed', {
+        institutionId: loan.institution_id,
+        clientId: loan.LoanApplication?.Client?.id,
+        recipientEmail: user?.email,
+        recipientPhone: user?.phone,
+        data: { clientName: user?.full_name, reference: loan.LoanApplication?.reference, amount: `${confirmedTotal.toLocaleString('pt-MZ')} MZN` },
+      });
+    } catch (e) { /* já registado em triggerEvent */ }
+  }
 }
 
 async function reconcilePayment(tx, actor = null, opts = {}) {

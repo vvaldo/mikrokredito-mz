@@ -209,15 +209,38 @@
               </div>
               <div class="form-group">
                 <div style="display:flex;justify-content:space-between;align-items:center">
-                  <label class="form-label" style="margin:0">Pré-visualização</label>
+                  <label class="form-label" style="margin:0">Pré-visualização por canal</label>
                   <button class="btn btn-xs" type="button" @click="showPreview=!showPreview">{{ showPreview?'Ocultar':'Pré-visualizar' }}</button>
                 </div>
-                <div v-if="showPreview" style="margin-top:8px;border:1px solid var(--mk-border);border-radius:var(--mk-r);padding:12px;background:var(--mk-surface-2)">
-                  <p v-if="previewSubject" style="font-size:12px;margin-bottom:8px"><strong>Assunto:</strong> {{ previewSubject }}</p>
-                  <div style="font-size:12px;line-height:1.6" v-html="previewBody"></div>
-                  <p class="form-hint" style="margin-top:8px">Simulação local com dados de exemplo — não envia nenhuma mensagem.</p>
+                <div v-if="showPreview" style="margin-top:8px">
+                  <div style="display:flex;gap:4px;margin-bottom:8px">
+                    <button v-for="ch in previewChannels" :key="ch" type="button"
+                      class="btn btn-xs" :class="{'btn-blue-soft':previewChannel===ch}"
+                      @click="previewChannel=ch">{{ chIcon(ch) }} {{ ch }}<span v-if="!templateForChannel(ch)" style="opacity:.5"> (sem template)</span></button>
+                  </div>
+                  <div style="border:1px solid var(--mk-border);border-radius:var(--mk-r);padding:12px;background:var(--mk-surface-2)">
+                    <template v-if="templateForChannel(previewChannel)">
+                      <p v-if="previewChannel==='email' && previewSubjectFor(previewChannel)" style="font-size:12px;margin-bottom:8px"><strong>Assunto:</strong> {{ previewSubjectFor(previewChannel) }}</p>
+                      <div v-if="previewChannel==='email'" style="font-size:12px;line-height:1.6" v-html="previewBodyFor(previewChannel)"></div>
+                      <pre v-else style="font-size:12px;line-height:1.6;white-space:pre-wrap;font-family:inherit;margin:0">{{ previewBodyFor(previewChannel) }}</pre>
+                      <p v-if="previewChannel==='sms'" class="form-hint" style="margin-top:8px" :style="{color: smsSegments>1 ? 'var(--orange-600,#b45309)' : undefined}">
+                        {{ smsCharCount }} caracteres · {{ smsSegments }} segmento(s) SMS
+                      </p>
+                    </template>
+                    <p v-else style="font-size:12px;color:var(--mk-text-2)">Este evento ainda não tem template para o canal {{ previewChannel }}.</p>
+                    <p class="form-hint" style="margin-top:8px">Simulação local com dados de exemplo — não envia nenhuma mensagem.</p>
+                  </div>
                 </div>
               </div>
+              <div class="form-group" v-if="editingTmpl.id">
+                <label class="form-label">🧪 Testar envio (real — usa o provedor verdadeiro)</label>
+                <div style="display:flex;gap:8px">
+                  <input class="form-input" v-model="testRecipient" :placeholder="editingTmpl.channel==='email' ? 'email@teste.com' : '+258840000000'" style="flex:1">
+                  <button class="btn btn-sm" type="button" :disabled="testSending || !testRecipient" @click="sendTestNow">{{ testSending ? 'A enviar...' : '🧪 Testar envio' }}</button>
+                </div>
+                <p v-if="testResult" class="form-hint" :style="{color: testResult.success ? 'var(--green-600,#15803d)' : 'var(--red-600,#dc2626)'}">{{ testResult.message }}</p>
+              </div>
+              <p v-else class="form-hint">Grave o template para poder testar o envio real.</p>
             </div>
             <div class="modal-footer">
               <button class="btn" @click="tmplModal=false">Cancelar</button>
@@ -266,18 +289,26 @@ const logPage = ref(1), logPageSize = ref(10)
 const pagedLogs = computed(() => filteredLogs.value.slice((logPage.value-1)*logPageSize.value, logPage.value*logPageSize.value))
 watch(filteredLogs, () => { logPage.value = 1 })
 
+// Lista completa dos 16 eventos realmente suportados pelo backend (ver enum_notification_rules_event
+// em models/index.js e os templates por omissão em models/seed.js) — mantida em sincronia com o
+// backend para que nenhum evento fique sem forma de ser configurado nesta tela.
 const eventKeys = [
+  { k:'client_registered',    label:'Cliente registado' },
+  { k:'kyc_submitted',        label:'KYC submetido' },
+  { k:'kyc_approved',         label:'KYC aprovado' },
+  { k:'kyc_rejected',         label:'KYC rejeitado' },
+  { k:'loan_docs_requested',  label:'Documentos solicitados' },
   { k:'loan_submitted',       label:'Pedido submetido' },
+  { k:'loan_under_review',    label:'Pedido em análise' },
   { k:'loan_approved',        label:'Pedido aprovado' },
   { k:'loan_rejected',        label:'Pedido rejeitado' },
   { k:'loan_disbursed',       label:'Empréstimo desembolsado' },
   { k:'payment_received',     label:'Pagamento recebido' },
   { k:'payment_failed',       label:'Pagamento falhado' },
   { k:'payment_due_reminder', label:'Lembrete de vencimento' },
-  { k:'kyc_approved',         label:'KYC aprovado' },
-  { k:'kyc_rejected',         label:'KYC rejeitado' },
-  { k:'client_registered',    label:'Cliente registado' },
-  { k:'docs_requested',       label:'Documentos solicitados' },
+  { k:'loan_overdue',         label:'Prestação em atraso' },
+  { k:'late_fee_started',     label:'Juros de mora iniciados' },
+  { k:'loan_completed',       label:'Empréstimo liquidado' },
 ]
 
 const rulesByEvent = ref({})
@@ -326,11 +357,17 @@ async function loadTmpls() { tmplLoading.value=true; await notif.fetchTemplates(
 function openTmpl(t) {
   editingTmpl.value = t ? { ...t } : { key:'', channel:'email', subject:'', body:'' }
   showPreview.value = false
+  previewChannel.value = editingTmpl.value.channel || 'email'
+  testRecipient.value = ''
+  testResult.value = null
   tmplModal.value = true
 }
 function duplicateTmpl(t) {
   editingTmpl.value = { ...t, id: null, subject: t.subject ? t.subject + ' (cópia)' : t.subject }
   showPreview.value = false
+  previewChannel.value = editingTmpl.value.channel || 'email'
+  testRecipient.value = ''
+  testResult.value = null
   tmplModal.value = true
 }
 async function toggleTmplActive(t) {
@@ -343,19 +380,58 @@ async function toggleTmplActive(t) {
 
 // ── Pré-visualização local (não envia nada) — usa exactamente as variáveis realmente
 // substituídas pelo backend (ver notificationService.js: clientName, amount, reference,
-// institutionName, product, installment, term, method, reason, app_name, app_url).
+// institutionName, product, installment, term, method, reason, app_name, app_url, e as
+// variáveis específicas de lembretes/mora: installmentAmount, dueDate, daysRemaining,
+// daysOverdue, balance, lateFee, lateInterestStartDate, lateInterest, loginEmail, passwordSetupUrl).
 const showPreview = ref(false)
+const previewChannel = ref('email')
+const previewChannels = ['email', 'sms', 'whatsapp']
 const previewSample = {
   clientName: 'Domingos José António Junior', amount: '8.000 MZN', reference: 'EMP-557509',
   institutionName: brand.name, product: 'Crédito Negócio', installment: '4.100 MZN', term: '3',
   method: 'M-Pesa', reason: 'Documentos incompletos', app_name: brand.name, app_url: appUrl,
+  installmentAmount: '4.100 MZN', dueDate: '02/09/2026', daysRemaining: '3', daysOverdue: '7',
+  balance: '4.651 MZN', lateFee: '553 MZN', lateInterestStartDate: '05/09/2026', lateInterest: '82 MZN',
+  loginEmail: 'cliente@exemplo.com', passwordSetupUrl: appUrl + '/set-password?token=amostra123',
 }
 function renderPreview(text) {
   if (!text) return ''
   return text.replace(/\{\{\s*([a-zA-Z_]+)\s*\}\}/g, (m, key) => previewSample[key] ?? m)
 }
-const previewSubject = computed(() => renderPreview(editingTmpl.value.subject))
-const previewBody = computed(() => renderPreview(editingTmpl.value.body))
+// Template do canal a pré-visualizar: o que está a ser editado (mesmo sem gravar ainda) quando
+// coincide com o canal escolhido, senão procura entre os templates já gravados para o MESMO
+// evento — assim é possível comparar como o mesmo evento fica em Email/SMS/WhatsApp.
+function templateForChannel(ch) {
+  if (editingTmpl.value.channel === ch) return editingTmpl.value
+  return templates.value.find(t => t.key === editingTmpl.value.key && t.channel === ch) || null
+}
+function previewSubjectFor(ch) { return renderPreview(templateForChannel(ch)?.subject) }
+function previewBodyFor(ch) {
+  const t = templateForChannel(ch)
+  if (!t) return ''
+  const rendered = renderPreview(t.body)
+  // WhatsApp/SMS nunca interpretam HTML — mostra tal como o destinatário realmente vê (texto),
+  // nunca renderizado; se sobrar alguma tag HTML aqui, é sinal de que o template precisa de
+  // ser corrigido para esse canal.
+  return ch === 'email' ? rendered : rendered.replace(/<[^>]+>/g, ' ').replace(/ {2,}/g, ' ').trim()
+}
+const smsCharCount = computed(() => previewBodyFor('sms').length)
+const smsSegments = computed(() => templateForChannel('sms') ? Math.max(1, Math.ceil(smsCharCount.value / 160)) : 0)
+
+// ── "🧪 Testar envio": envio REAL através do provedor configurado (nunca uma simulação) —
+// só disponível para templates já gravados, para testar sempre a versão exacta que será usada.
+const testRecipient = ref('')
+const testSending = ref(false)
+const testResult = ref(null)
+async function sendTestNow() {
+  testSending.value = true; testResult.value = null
+  try {
+    const data = await notif.sendTest({ template_id: editingTmpl.value.id, channel: editingTmpl.value.channel, recipient: testRecipient.value, data: previewSample })
+    testResult.value = { success: true, message: data.message }
+  } catch (e) {
+    testResult.value = { success: false, message: e.response?.data?.message || 'Erro ao enviar teste' }
+  } finally { testSending.value = false }
+}
 async function saveTmpl() {
   if (!editingTmpl.value.key || !editingTmpl.value.channel || !editingTmpl.value.body) {
     toast.error('Preencha todos os campos obrigatórios'); return

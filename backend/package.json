@@ -8,7 +8,7 @@
     "seed": "node src/models/seed.js",
     "clean": "node src/models/clean.js",
     "worker": "node src/queues/worker.js",
-    "test": "node tests/loanAccounting.test.js"
+    "test": "node tests/loanAccounting.test.js && node tests/htmlToWhatsAppText.test.js"
   },
   "dependencies": {
     "express": "^4.21.2",

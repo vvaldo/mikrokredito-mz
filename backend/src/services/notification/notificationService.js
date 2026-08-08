@@ -5,6 +5,7 @@ const emailProvider    = require('./providers/emailProvider');
 const smsProvider      = require('./providers/smsProvider');
 const whatsappProvider = require('./providers/whatsappProvider');
 const logger = require('../../utils/logger');
+const { htmlToWhatsAppText } = require('../../utils/htmlToWhatsAppText');
 
 const PROVIDERS = { email: emailProvider, sms: smsProvider, whatsapp: whatsappProvider };
 
@@ -45,7 +46,13 @@ async function triggerEvent(event, context) {
         const template = await resolveTemplate(event, channel, institutionId, 'pt');
         if (!template) { logger.warn(`No template for event=${event} channel=${channel}`); continue; }
 
+        warnMissingVariables(template, renderData, event, channel);
         const rendered = renderTemplate(template, renderData);
+        // WhatsApp não interpreta HTML — se um template tiver sido editado com marcação HTML
+        // (ex.: colado a partir da versão de email), converte para o texto simples formatado
+        // que o WhatsApp entende. Os templates por omissão já são texto simples, por isso isto
+        // é apenas uma rede de segurança (não altera nada quando não há tags HTML).
+        if (channel === 'whatsapp') rendered.body = htmlToWhatsAppText(rendered.body);
 
         const logEntry = await NotificationLog.create({
           institution_id:   institutionId,
@@ -92,6 +99,29 @@ async function resolveTemplate(event, channel, institutionId, lang = 'pt') {
   });
 }
 
+// Handlebars deixa {{variavel}} vazio (em vez de falhar) quando a variável não existe nos
+// dados — o que produz mensagens com buracos silenciosos ("Olá, !"). Isto não impede o envio
+// (o pedido pode ser legítimo mesmo com uma variável opcional em falta), mas regista sempre um
+// aviso claro no log da aplicação para que a causa seja fácil de encontrar.
+const HANDLEBARS_KEYWORDS = new Set(['this', 'else']);
+function warnMissingVariables(template, data, event, channel) {
+  const pattern = /\{\{\{?\s*([#/]?)([a-zA-Z_][\w.]*)\s*\}?\}\}/g;
+  const missing = new Set();
+  for (const text of [template.body, template.subject]) {
+    if (!text) continue;
+    let match;
+    while ((match = pattern.exec(text))) {
+      const [, prefix, name] = match;
+      if (prefix === '#' || prefix === '/' || HANDLEBARS_KEYWORDS.has(name)) continue;
+      const rootKey = name.split('.')[0];
+      if (data[rootKey] === undefined || data[rootKey] === null || data[rootKey] === '') missing.add(name);
+    }
+  }
+  if (missing.size > 0) {
+    logger.warn('Template com variável(is) sem valor', { event, channel, template: template.key, missing: [...missing] });
+  }
+}
+
 function renderTemplate(template, data) {
   const compiledBody    = Handlebars.compile(template.body)(data || {});
   const compiledSubject = template.subject ? Handlebars.compile(template.subject)(data || {}) : null;
@@ -135,6 +165,51 @@ async function sendNotification(logId) {
   }
 }
 
+// Envio de teste REAL — usado pelo botão "🧪 Testar envio": resolve um template concreto
+// (por id, ou por evento+canal como qualquer trigger normal), renderiza-o com os dados de
+// amostra fornecidos, e envia-o de imediato através do provedor verdadeiro (nunca apenas
+// "colocado em fila" — sendNotification() é síncrono e propaga o erro real do provedor se
+// falhar). Fica sempre registado em NotificationLog (metadata.manual_test=true) para auditoria,
+// tal como qualquer outro envio.
+async function testSend({ templateId, event, channel, institutionId, recipient, data = {}, testedBy }) {
+  const template = templateId
+    ? await NotificationTemplate.findByPk(templateId)
+    : await resolveTemplate(event, channel, institutionId, 'pt');
+  if (!template) {
+    const err = new Error('Template não encontrado para este evento/canal.');
+    err.status = 404;
+    throw err;
+  }
+
+  const institution = template.institution_id ? await Institution.findByPk(template.institution_id) : null;
+  const renderData = { ...data, app_name: institution?.name || 'MicroCredit SYSTEM', app_url: process.env.FRONTEND_URL || '' };
+  const rendered = renderTemplate(template, renderData);
+  if (channel === 'whatsapp') rendered.body = htmlToWhatsAppText(rendered.body);
+
+  const log = await NotificationLog.create({
+    institution_id:   template.institution_id || institutionId || null,
+    channel,
+    event:            template.key,
+    template_key:     template.key,
+    recipient_email:  channel === 'email' ? recipient : null,
+    recipient_phone:  channel !== 'email' ? recipient : null,
+    subject:          rendered.subject,
+    body:             rendered.body,
+    status:           'queued',
+    max_attempts:     1,
+    metadata:         { manual_test: true, tested_by: testedBy || null },
+  });
+
+  try {
+    await sendNotification(log.id);
+    await log.reload();
+    return { success: true, log };
+  } catch (err) {
+    await log.reload();
+    return { success: false, log, error: err.message };
+  }
+}
+
 async function retryFailed(institutionId) {
   const { Op } = require('sequelize');
   const failed = await NotificationLog.findAll({
@@ -173,4 +248,4 @@ async function getStats(institutionId, from, to) {
   });
 }
 
-module.exports = { triggerEvent, sendNotification, retryFailed, getStats, resolveTemplate, renderTemplate };
+module.exports = { triggerEvent, sendNotification, testSend, retryFailed, getStats, resolveTemplate, renderTemplate };
