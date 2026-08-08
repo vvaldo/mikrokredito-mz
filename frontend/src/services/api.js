@@ -52,11 +52,24 @@ export async function uploadDocument(file, docType, clientId, loanId) {
 }
 
 
-// ── Authenticated document download helper
-export async function downloadDocument(documentId, fallbackName = 'documento') {
-  const response = await api.get(`/documents/${documentId}/download`, {
-    responseType: 'blob',
-  })
+// ── Shared authenticated blob-download helper. responseType:'blob' means axios never parses
+// an error JSON body (403/404/etc.) — it silently wraps it as an opaque Blob, so callers used
+// to get a generic "erro" toast no matter what actually failed server-side (missing file on
+// disk, permissão negada, ...). This decodes the Blob back to JSON on failure so the real
+// backend message reaches the user.
+async function downloadBlob(url, fallbackName) {
+  let response
+  try {
+    response = await api.get(url, { responseType: 'blob' })
+  } catch (err) {
+    let message = 'Erro ao transferir ficheiro'
+    if (err.response?.data instanceof Blob) {
+      try { message = JSON.parse(await err.response.data.text())?.message || message } catch (_) { /* not JSON */ }
+    } else if (err.response?.data?.message) {
+      message = err.response.data.message
+    }
+    throw new Error(message)
+  }
 
   const disposition = response.headers['content-disposition'] || ''
   let filename = fallbackName
@@ -73,6 +86,16 @@ export async function downloadDocument(documentId, fallbackName = 'documento') {
   link.click()
   link.remove()
   window.URL.revokeObjectURL(blobUrl)
+}
+
+// ── Authenticated document download helper
+export async function downloadDocument(documentId, fallbackName = 'documento') {
+  return downloadBlob(`/documents/${documentId}/download`, fallbackName)
+}
+
+// ── Authenticated payment receipt download helper
+export async function downloadReceipt(paymentId, fallbackName = 'comprovativo') {
+  return downloadBlob(`/payments/${paymentId}/receipt`, fallbackName)
 }
 
 

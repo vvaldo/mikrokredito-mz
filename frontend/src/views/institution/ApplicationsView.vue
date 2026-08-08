@@ -19,13 +19,23 @@
 
     <div class="modern-card">
       <h2>Lista de pedidos</h2>
+      <div class="filters-bar">
+        <label class="field"><span>Pesquisar</span><input class="input" v-model="filters.q" placeholder="Referência ou nome do cliente"></label>
+        <label class="field"><span>Estado</span><select class="input" v-model="filters.status"><option value="">Todos</option><option value="submitted">Submetido</option><option value="under_review">Em análise</option><option value="docs_requested">Documentos solicitados</option><option value="approved">Aprovado</option><option value="rejected">Desaprovado</option><option value="disbursed">Desembolsado</option></select></label>
+        <div class="filters-actions">
+          <button class="btn btn-primary btn-sm" @click="qDebounced=filters.q">Filtrar</button>
+          <button class="btn btn-sm" @click="clearFilters">Limpar filtros</button>
+        </div>
+      </div>
       <LoadingSpinner v-if="loading" label="A carregar pedidos..." />
-      <div v-else class="table-wrap">
+      <template v-else>
+      <div class="table-wrap desktop-only">
       <table class="modern-table">
         <thead><tr><th>Ref.</th><th>Cliente</th><th>Produto</th><th>Valor desembolsado</th><th>Total com juros</th><th>Docs</th><th>Status</th><th>Acções</th></tr></thead>
         <tbody>
           <tr v-if="items.length===0"><td colspan="8" class="muted">Sem pedidos submetidos.</td></tr>
-          <tr v-for="r in pagedItems" :key="r.id">
+          <tr v-else-if="filteredItems.length===0"><td colspan="8" class="empty-state">Nenhum pedido corresponde aos filtros.</td></tr>
+          <tr v-for="r in pagedItems" :key="r.id" class="clickable-row" tabindex="0" role="button" :aria-label="`Ver detalhe do pedido ${r.reference}`" @click="openView(r)" @keydown.enter="openView(r)" @keydown.space.prevent="openView(r)">
             <td><strong>{{ r.reference }}</strong></td>
             <td>{{ r.Client?.User?.full_name || 'Cliente' }}</td>
             <td>{{ r.CreditProduct?.name || 'Produto' }}</td>
@@ -33,18 +43,43 @@
             <td><strong>{{ mzn(totalWithInterest(r)) }}</strong></td>
             <td>{{ docCount(r) }}/4</td>
             <td><span :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td>
-            <td><div class="action-row">
-              <button class="btn btn-sm" @click="openView(r)">Visualizar</button>
-              <button class="btn btn-sm btn-blue-soft" :disabled="r.status!=='submitted'" @click="changeStatus(r,'under_review')">Enviar para análise</button>
-              <button class="btn btn-sm btn-primary" :disabled="r.status!=='under_review' || docCount(r)<4" @click="confirmAction(r,'approved')">Aprovar</button>
-              <button class="btn btn-sm btn-danger-soft" :disabled="!['submitted','under_review','docs_requested'].includes(r.status)" @click="confirmAction(r,'rejected')">Desaprovar</button>
-              <button class="btn btn-sm btn-primary" :disabled="r.status!=='approved'" @click="disburse(r)">Desembolsar</button>
+            <td><div class="action-row" @click.stop>
+              <button class="btn btn-sm" @click.stop="openView(r)">Visualizar</button>
+              <button class="btn btn-sm btn-blue-soft" :disabled="r.status!=='submitted'" @click.stop="changeStatus(r,'under_review')">Enviar para análise</button>
+              <button class="btn btn-sm btn-primary" :disabled="r.status!=='under_review' || docCount(r)<4" @click.stop="confirmAction(r,'approved')">Aprovar</button>
+              <button class="btn btn-sm btn-danger-soft" :disabled="!['submitted','under_review','docs_requested'].includes(r.status)" @click.stop="confirmAction(r,'rejected')">Desaprovar</button>
+              <button class="btn btn-sm btn-primary" :disabled="r.status!=='approved'" @click.stop="disburse(r)">Desembolsar</button>
             </div></td>
           </tr>
         </tbody>
       </table>
       </div>
-      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="items.length" />
+
+      <div class="mobile-cards mobile-only">
+        <div v-for="r in pagedItems" :key="r.id" class="list-card" tabindex="0" role="button" @click="openView(r)" @keydown.enter="openView(r)" @keydown.space.prevent="openView(r)">
+          <div class="list-card-head">
+            <div><strong>{{ r.reference }}</strong><br><span class="muted">{{ r.Client?.User?.full_name || 'Cliente' }} · {{ r.CreditProduct?.name || 'Produto' }}</span></div>
+            <span :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span>
+          </div>
+          <div class="loan-card-grid">
+            <div><span class="muted">Valor</span><strong>{{ mzn(disbursedValue(r)) }}</strong></div>
+            <div><span class="muted">Total c/ juros</span><strong>{{ mzn(totalWithInterest(r)) }}</strong></div>
+            <div><span class="muted">Docs</span><strong>{{ docCount(r) }}/4</strong></div>
+          </div>
+          <div class="action-row" @click.stop>
+            <button class="btn btn-sm" @click.stop="openView(r)">Visualizar</button>
+            <button class="btn btn-sm btn-blue-soft" :disabled="r.status!=='submitted'" @click.stop="changeStatus(r,'under_review')">Enviar para análise</button>
+            <button class="btn btn-sm btn-primary" :disabled="r.status!=='under_review' || docCount(r)<4" @click.stop="confirmAction(r,'approved')">Aprovar</button>
+            <button class="btn btn-sm btn-danger-soft" :disabled="!['submitted','under_review','docs_requested'].includes(r.status)" @click.stop="confirmAction(r,'rejected')">Desaprovar</button>
+            <button class="btn btn-sm btn-primary" :disabled="r.status!=='approved'" @click.stop="disburse(r)">Desembolsar</button>
+          </div>
+        </div>
+        <p v-if="items.length && !filteredItems.length" class="empty-state">Nenhum pedido corresponde aos filtros.</p>
+        <p v-if="!items.length" class="muted">Sem pedidos submetidos.</p>
+      </div>
+
+      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="filteredItems.length" />
+      </template>
     </div>
 
     <div v-if="modal" class="modal-backdrop" @click.self="close">
@@ -53,6 +88,7 @@
         <div v-if="modal==='view' && selected">
           <div class="notif-tabs">
             <button class="notif-tab" :class="{active:viewTab==='details'}" @click="viewTab='details'">Detalhes</button>
+            <button class="notif-tab" :class="{active:viewTab==='cliente'}" @click="viewTab='cliente'">Cliente</button>
             <button class="notif-tab" :class="{active:viewTab==='docs'}" @click="viewTab='docs'">Documentos <span class="tab-count">{{ (selected.Documents||[]).length }}</span></button>
             <button class="notif-tab" :class="{active:viewTab==='schedule'}" @click="viewTab='schedule'">Prestações <span class="tab-count">{{ paymentSchedules(selected).length }}</span></button>
           </div>
@@ -67,6 +103,17 @@
             <div><span class="muted">Status</span><strong>{{ statusLabel(selected.status) }}</strong></div>
             <div><span class="muted">Aprovado em</span><strong>{{ selected.reviewed_at ? date(selected.reviewed_at) : '—' }}</strong></div>
             <div><span class="muted">ID funcionário</span><strong class="small-id">{{ selected.reviewed_by || '—' }}</strong></div>
+          </div>
+
+          <div v-if="viewTab==='cliente'" class="detail-grid">
+            <div><span class="muted">Nome</span><strong>{{ selected.Client?.User?.full_name || '—' }}</strong></div>
+            <div><span class="muted">Email</span><strong>{{ selected.Client?.User?.email || '—' }}</strong></div>
+            <div><span class="muted">Telefone</span><strong>{{ selected.Client?.User?.phone || '—' }}</strong></div>
+            <div><span class="muted">NUIT</span><strong>{{ selected.Client?.nuit || '—' }}</strong></div>
+            <div><span class="muted">Estado KYC</span><strong>{{ selected.Client?.kyc_status || '—' }}</strong></div>
+            <div><span class="muted">Estado CRC</span><strong>{{ selected.Client?.crc_status || '—' }}</strong></div>
+            <div><span class="muted">Rendimento mensal</span><strong>{{ selected.Client?.monthly_income ? mzn(selected.Client.monthly_income) : '—' }}</strong></div>
+            <div><span class="muted">Actividade</span><strong>{{ selected.Client?.activity_type || '—' }}</strong></div>
           </div>
 
           <div v-if="viewTab==='docs'">
@@ -128,8 +175,19 @@ const viewTab=ref('details')
 const todayStr=new Date().toISOString().slice(0,10)
 const disburseDate=ref(todayStr)
 const page=ref(1), pageSize=ref(10)
-const pagedItems=computed(()=>items.value.slice((page.value-1)*pageSize.value, page.value*pageSize.value))
-watch(items, () => { page.value = 1 })
+const filters=ref({q:'',status:''})
+const qDebounced=ref('')
+let qDebounceTimer=null
+watch(()=>filters.value.q, (v)=>{ clearTimeout(qDebounceTimer); qDebounceTimer=setTimeout(()=>{ qDebounced.value=v }, 300) })
+function clearFilters(){ filters.value={q:'',status:''}; qDebounced.value='' }
+const filteredItems=computed(()=>items.value.filter(r=>{
+  const q=qDebounced.value.trim().toLowerCase()
+  if(q){ const hay=`${r.reference||''} ${r.Client?.User?.full_name||''}`.toLowerCase(); if(!hay.includes(q)) return false }
+  if(filters.value.status && r.status!==filters.value.status) return false
+  return true
+}))
+const pagedItems=computed(()=>filteredItems.value.slice((page.value-1)*pageSize.value, page.value*pageSize.value))
+watch(filteredItems, () => { page.value = 1 })
 const pending=computed(()=>items.value.filter(i=>['submitted','under_review','docs_requested'].includes(i.status)).length)
 const rejected=computed(()=>items.value.filter(i=>i.status==='rejected').length)
 const total=computed(()=>items.value.reduce((s,i)=>s+Number(i.requested_amount||0),0))

@@ -233,5 +233,21 @@ table{border-collapse:collapse;width:100%}
   .grid-2,.grid-3,.grid-4{grid-template-columns:1fr}
   .page-header{flex-direction:column;align-items:flex-start}
   .page-actions{width:100%}
+
+  /* Modais praticamente fullscreen no telemóvel, com cabeçalho fixo para o botão Fechar
+     nunca ficar inacessível ao fazer scroll num modal longo (ex.: detalhe com abas).
+     .mk-modal mantém o padding próprio (conteúdo de modais existentes não tem wrapper
+     .mk-modal-body) — só .mk-modal-body, quando usado por um modal novo, ganha scroll
+     independente dentro do ecrã cheio. */
+  .modal-backdrop{padding:0;align-items:stretch}
+  .mk-modal,.mk-modal.wide{width:100%;max-width:100%;height:100%;max-height:100%;border-radius:0;
+    display:flex;flex-direction:column}
+  .mk-modal-head{position:sticky;top:0;background:var(--mk-surface);z-index:2;margin:-20px -20px 16px;padding:16px 20px;border-bottom:1px solid var(--mk-border)}
+  .mk-modal>.notif-tabs{position:sticky;top:0;background:var(--mk-surface);z-index:1;
+    overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;margin:0 -20px;padding:0 20px}
+  .mk-modal>.notif-tab{flex-shrink:0}
+  .mk-modal-body{flex:1;overflow-y:auto;margin:0 -20px;padding:0 20px}
+  .mk-modal .modal-actions{position:sticky;bottom:0;background:var(--mk-surface);
+    margin:16px -20px -20px;padding:12px 20px;border-top:1px solid var(--mk-border)}
 }
 @media(max-width:1024px){.grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}}

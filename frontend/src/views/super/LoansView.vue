@@ -18,16 +18,29 @@
 
     <div class="modern-card">
       <h2>Lista de empréstimos</h2>
+      <div class="filters-bar">
+        <label class="field"><span>Pesquisar</span><input class="input" v-model="filters.q" placeholder="Referência (EMP-...) ou nome do cliente"></label>
+        <label class="field"><span>Estado</span><select class="input" v-model="filters.status"><option value="">Todos</option><option value="active">Activo</option><option value="overdue">Em falta</option><option value="completed">Liquidado</option><option value="approved_pending_disbursement">Aprovado / por desembolsar</option><option value="disbursed_without_schedule">Desembolsado</option></select></label>
+        <label class="field" v-if="productOptions.length"><span>Produto</span><select class="input" v-model="filters.product"><option value="">Todos</option><option v-for="p in productOptions" :key="p" :value="p">{{ p }}</option></select></label>
+        <label class="field"><span>Valor mínimo</span><input class="input" type="number" v-model.number="filters.min" placeholder="0"></label>
+        <label class="field"><span>Valor máximo</span><input class="input" type="number" v-model.number="filters.max" placeholder="—"></label>
+        <label class="field"><span>Desembolso de</span><input class="input" type="date" v-model="filters.from"></label>
+        <label class="field"><span>Desembolso até</span><input class="input" type="date" v-model="filters.to"></label>
+        <div class="filters-actions">
+          <button class="btn btn-primary btn-sm" @click="qDebounced=filters.q">Filtrar</button>
+          <button class="btn btn-sm" @click="clearFilters">Limpar filtros</button>
+        </div>
+      </div>
       <LoadingSpinner v-if="loading" label="A carregar empréstimos..." />
       <template v-else>
-      <div class="table-wrap">
+      <div class="table-wrap desktop-only">
       <table class="modern-table">
         <thead>
           <tr><th>Ref.</th><th>Cliente</th><th>Valor</th><th>Juros</th><th>Valor total</th><th>Saldo</th><th>Estado</th><th>Acções</th></tr>
         </thead>
         <tbody>
           <template v-for="l in pagedLoans" :key="l.id">
-            <tr>
+            <tr class="clickable-row" tabindex="0" role="button" :aria-label="`Ver detalhe do empréstimo ${l.LoanApplication?.reference||''}`" @click="openDetail(l)" @keydown.enter="openDetail(l)" @keydown.space.prevent="openDetail(l)">
               <td><strong>{{ l.LoanApplication?.reference || l.id }}</strong></td>
               <td>{{ l.LoanApplication?.Client?.User?.full_name || 'Cliente' }}</td>
               <td>{{ mzn(disbursedAmount(l)) }}</td>
@@ -36,14 +49,14 @@
               <td><strong :class="balanceAmount(l) > 0 ? 'danger-text' : 'ok-text'">{{ mzn(balanceAmount(l)) }}</strong></td>
               <td><StatusBadge :status="displayStatus(l)" /></td>
               <td>
-                <div class="action-row">
-                  <button class="btn btn-sm btn-blue-soft" @click="toggle(l)">{{ opened[l.id] ? 'Fechar' : 'Expandir' }}</button>
-                  <button class="btn btn-sm btn-primary" @click="openPay(l)">Registar pagamento</button>
-                  <button class="btn btn-sm btn-danger-soft" @click="notify(l)">Notificar</button>
-                  <button class="btn btn-sm" @click="viewLoan(l)">Visualizar</button>
-                  <button class="btn btn-sm" @click="downloadStatementPdf(l)">Baixar PDF</button>
-                  <button class="btn btn-sm" @click="editDisbursement(l)">Editar desembolso</button>
-                  <button class="btn btn-sm btn-blue-soft" @click="recalculate(l)">Recalcular</button>
+                <div class="action-row" @click.stop>
+                  <button class="btn btn-sm btn-blue-soft" @click.stop="toggle(l)">{{ opened[l.id] ? 'Fechar' : 'Expandir' }}</button>
+                  <button class="btn btn-sm btn-primary" @click.stop="openPay(l)">Registar pagamento</button>
+                  <button class="btn btn-sm btn-danger-soft" @click.stop="notify(l)">Notificar</button>
+                  <button class="btn btn-sm" @click.stop="viewLoan(l)">Visualizar</button>
+                  <button class="btn btn-sm" @click.stop="downloadStatementPdf(l)">Baixar PDF</button>
+                  <button class="btn btn-sm" @click.stop="editDisbursement(l)">Editar desembolso</button>
+                  <button class="btn btn-sm btn-blue-soft" @click.stop="recalculate(l)">Recalcular</button>
                 </div>
               </td>
             </tr>
@@ -73,10 +86,50 @@
             </tr>
           </template>
           <tr v-if="!loans.length"><td colspan="8" class="empty-state">Sem empréstimos activos para apresentar.</td></tr>
+          <tr v-else-if="!filteredLoans.length"><td colspan="8" class="empty-state">Nenhum empréstimo corresponde aos filtros.</td></tr>
         </tbody>
       </table>
       </div>
-      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="loans.length" />
+
+      <!-- Cartões mobile: mesma informação e mesmas acções, sem esconder nada atrás de overflow-x. -->
+      <div class="mobile-cards mobile-only">
+        <div v-for="l in pagedLoans" :key="l.id" class="loan-card" tabindex="0" role="button" @click="openDetail(l)" @keydown.enter="openDetail(l)" @keydown.space.prevent="openDetail(l)">
+          <div class="loan-card-head">
+            <div><strong>{{ l.LoanApplication?.reference || l.id }}</strong><br><span class="muted">{{ l.LoanApplication?.Client?.User?.full_name || 'Cliente' }}</span></div>
+            <StatusBadge :status="displayStatus(l)" />
+          </div>
+          <div class="loan-card-grid">
+            <div><span class="muted">Valor</span><strong>{{ mzn(disbursedAmount(l)) }}</strong></div>
+            <div><span class="muted">Total</span><strong>{{ mzn(repayableAmount(l)) }}</strong></div>
+            <div><span class="muted">Pago</span><strong>{{ mzn(totalPaid(l)) }}</strong></div>
+            <div><span class="muted">Saldo</span><strong :class="balanceAmount(l) > 0 ? 'danger-text' : 'ok-text'">{{ mzn(balanceAmount(l)) }}</strong></div>
+          </div>
+          <div class="action-row" @click.stop>
+            <button class="btn btn-sm btn-blue-soft" @click.stop="toggle(l)">{{ opened[l.id] ? 'Fechar' : 'Expandir' }}</button>
+            <button class="btn btn-sm btn-primary" @click.stop="openPay(l)">Registar pagamento</button>
+            <button class="btn btn-sm btn-danger-soft" @click.stop="notify(l)">Notificar</button>
+            <button class="btn btn-sm" @click.stop="viewLoan(l)">Visualizar</button>
+            <button class="btn btn-sm" @click.stop="downloadStatementPdf(l)">Baixar PDF</button>
+            <button class="btn btn-sm" @click.stop="editDisbursement(l)">Editar desembolso</button>
+            <button class="btn btn-sm btn-blue-soft" @click.stop="recalculate(l)">Recalcular</button>
+            <button class="btn btn-sm" @click.stop="openDetail(l)">Ver detalhes</button>
+          </div>
+          <div v-if="opened[l.id]" class="table-wrap" style="margin-top:10px" @click.stop>
+            <table class="modern-table">
+              <thead><tr><th>Nº</th><th>Venc.</th><th>Total</th><th>Pago</th><th>Estado</th></tr></thead>
+              <tbody>
+                <tr v-for="p in l.PaymentSchedules" :key="p.id">
+                  <td>{{ p.installment_number }}</td><td>{{ date(p.due_date) }}</td><td>{{ mzn(Number(p.total_due||0)+Number(p.late_fee||0)) }}</td><td>{{ mzn(p.total_paid) }}</td><td><StatusBadge :status="p.status" /></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p v-if="loans.length && !filteredLoans.length" class="empty-state">Nenhum empréstimo corresponde aos filtros.</p>
+        <p v-if="!loans.length" class="empty-state">Sem empréstimos activos para apresentar.</p>
+      </div>
+
+      <AppPagination v-model:page="page" v-model:page-size="pageSize" :total="filteredLoans.length" />
       </template>
     </div>
 
@@ -118,6 +171,111 @@
           <label class="upload-card"><div><strong>Comprovativo digitalizado</strong><span>{{ pay.receipt?.name || 'Anexar ficheiro' }}</span></div><input type="file" @change="e=>pay.receipt=e.target.files?.[0]" required></label>
           <div class="modal-actions"><button class="btn" type="button" @click="modal=null">Cancelar</button><button class="btn btn-primary" type="submit">Gravar pagamento na BD</button></div>
         </form>
+
+        <template v-if="modal==='detail' && selected">
+          <div class="notif-tabs">
+            <button class="notif-tab" :class="{active:detailTab==='resumo'}" @click="onDetailTab('resumo')">Resumo</button>
+            <button class="notif-tab" :class="{active:detailTab==='prestacoes'}" @click="onDetailTab('prestacoes')">Prestações</button>
+            <button class="notif-tab" :class="{active:detailTab==='pagamentos'}" @click="onDetailTab('pagamentos')">Pagamentos</button>
+            <button class="notif-tab" :class="{active:detailTab==='cliente'}" @click="onDetailTab('cliente')">Cliente</button>
+            <button class="notif-tab" :class="{active:detailTab==='historico'}" @click="onDetailTab('historico')">Histórico</button>
+          </div>
+          <div class="mk-modal-body">
+
+          <div v-if="detailTab==='resumo'">
+            <div class="mini-stats">
+              <div><span>Capital</span><strong>{{ mzn(disbursedAmount(selected)) }}</strong></div>
+              <div><span>Juros</span><strong>{{ mzn(interestAmount(selected)) }}</strong></div>
+              <div><span>Mora</span><strong>{{ mzn(lateFees(selected)) }}</strong></div>
+              <div><span>Total pago</span><strong>{{ mzn(totalPaid(selected)) }}</strong></div>
+              <div><span>Saldo</span><strong :class="balanceAmount(selected) > 0 ? 'danger-text' : 'ok-text'">{{ mzn(balanceAmount(selected)) }}</strong></div>
+            </div>
+            <div class="detail-grid">
+              <div><span class="muted">Referência</span><strong>{{ selected.LoanApplication?.reference }}</strong></div>
+              <div><span class="muted">Cliente</span><strong>{{ selected.LoanApplication?.Client?.User?.full_name }}</strong></div>
+              <div><span class="muted">Produto</span><strong>{{ selected.LoanApplication?.CreditProduct?.name || '—' }}</strong></div>
+              <div><span class="muted">Valor desembolsado</span><strong>{{ mzn(disbursedAmount(selected)) }}</strong></div>
+              <div><span class="muted">Valor total</span><strong>{{ mzn(repayableAmount(selected)) }}</strong></div>
+              <div><span class="muted">Prazo</span><strong>{{ termMonths(selected) }} meses</strong></div>
+              <div><span class="muted">Data de desembolso</span><strong>{{ date(selected.disbursed_at || selected.LoanApplication?.disbursed_at) }}</strong></div>
+              <div><span class="muted">Próximo vencimento</span><strong>{{ date(selected.next_due_date) }}</strong></div>
+              <div><span class="muted">Estado</span><strong>{{ statusLabel(displayStatus(selected)) }}</strong></div>
+            </div>
+          </div>
+
+          <div v-if="detailTab==='prestacoes'" class="table-wrap">
+            <table class="modern-table">
+              <thead><tr><th>Nº</th><th>Vencimento</th><th>Capital</th><th>Juros</th><th>Mora</th><th>Total</th><th>Pago</th><th>Saldo</th><th>Estado</th></tr></thead>
+              <tbody>
+                <tr v-for="p in selected.PaymentSchedules" :key="p.id">
+                  <td>{{ p.installment_number }}</td><td>{{ date(p.due_date) }}</td><td>{{ mzn(p.principal_due) }}</td><td>{{ mzn(p.interest_due) }}</td><td>{{ mzn(p.late_fee) }}</td><td>{{ mzn(Number(p.total_due||0)+Number(p.late_fee||0)) }}</td><td>{{ mzn(p.total_paid) }}</td><td>{{ mzn(scheduleBalance(p)) }}</td><td><StatusBadge :status="p.status" /></td>
+                </tr>
+                <tr v-if="!(selected.PaymentSchedules||[]).length"><td colspan="9" class="empty-state">Sem prestações geradas.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-if="detailTab==='pagamentos'">
+            <LoadingSpinner v-if="detailPaymentsLoading" label="A carregar pagamentos..." />
+            <div v-else class="table-wrap">
+              <table class="modern-table">
+                <thead><tr><th>Referência</th><th>Data</th><th>Valor</th><th>Mora</th><th>Método</th><th>Prestação(ões)</th><th>Registado por</th><th>Comprovativo</th><th>Estado</th></tr></thead>
+                <tbody>
+                  <tr v-for="p in detailPayments" :key="p.id">
+                    <td>{{ p.reference }}</td>
+                    <td>{{ p.created_at ? new Date(p.created_at).toLocaleString('pt-MZ') : '—' }}</td>
+                    <td>{{ mzn(p.amount) }}</td>
+                    <td>{{ mzn(p.applied_late_fee) }}</td>
+                    <td>{{ p.method }}</td>
+                    <td>{{ (p.PaymentAllocations||[]).filter(a=>a.PaymentSchedule).map(a=>'Nº'+a.PaymentSchedule.installment_number).join(', ') || '—' }}</td>
+                    <td>{{ p.registered_by_user?.full_name || 'Sistema/Cliente' }}</td>
+                    <td><span :class="p.receipt_file_name?'badge-yesno-yes':'badge-yesno-no'">{{ p.receipt_file_name?'Sim':'Não' }}</span></td>
+                    <td><StatusBadge :status="p.status" /></td>
+                  </tr>
+                  <tr v-if="!detailPayments.length"><td colspan="9" class="empty-state">Sem pagamentos registados para este empréstimo.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div v-if="detailTab==='cliente'" class="detail-grid">
+            <div><span class="muted">Nome</span><strong>{{ selected.LoanApplication?.Client?.User?.full_name || '—' }}</strong></div>
+            <div><span class="muted">Email</span><strong>{{ selected.LoanApplication?.Client?.User?.email || '—' }}</strong></div>
+            <div><span class="muted">Telefone</span><strong>{{ selected.LoanApplication?.Client?.User?.phone || '—' }}</strong></div>
+            <div><span class="muted">NUIT</span><strong>{{ selected.LoanApplication?.Client?.nuit || '—' }}</strong></div>
+            <div><span class="muted">Estado KYC</span><strong>{{ selected.LoanApplication?.Client?.kyc_status || '—' }}</strong></div>
+            <div><span class="muted">Estado CRC</span><strong>{{ selected.LoanApplication?.Client?.crc_status || '—' }}</strong></div>
+          </div>
+
+          <div v-if="detailTab==='historico'">
+            <LoadingSpinner v-if="detailAuditLoading" label="A carregar histórico..." />
+            <p v-else-if="detailAuditForbidden" class="empty-state">Sem permissão para consultar o histórico de auditoria.</p>
+            <div v-else class="table-wrap">
+              <table class="modern-table">
+                <thead><tr><th>Data/hora</th><th>Utilizador</th><th>Acção</th></tr></thead>
+                <tbody>
+                  <tr v-for="a in detailAudit" :key="a.id">
+                    <td>{{ new Date(a.created_at).toLocaleString('pt-MZ') }}</td>
+                    <td>{{ a.user_name || '—' }} <span class="muted">({{ a.user_role || '—' }})</span></td>
+                    <td>{{ auditActionLabel(a.action) }}</td>
+                  </tr>
+                  <tr v-if="!detailAudit.length"><td colspan="3" class="empty-state">Sem eventos registados.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          </div>
+          <div class="modal-actions">
+            <button class="btn" @click="modal=null">Fechar</button>
+            <button class="btn btn-blue-soft" @click="toggle(selected)">{{ opened[selected.id] ? 'Fechar expandir' : 'Expandir' }}</button>
+            <button class="btn btn-primary" @click="openPay(selected)">Registar pagamento</button>
+            <button class="btn btn-danger-soft" @click="notify(selected)">Notificar</button>
+            <button class="btn" @click="downloadStatementPdf(selected)">Baixar PDF</button>
+            <button class="btn" @click="editDisbursement(selected)">Editar desembolso</button>
+            <button class="btn btn-blue-soft" @click="recalculate(selected)">Recalcular</button>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -143,9 +301,41 @@ const pay = ref({})
 const todayStr = new Date().toISOString().slice(0,10)
 const redisburseDate = ref(todayStr)
 const page = ref(1), pageSize = ref(10)
-const pagedLoans = computed(() => loans.value.slice((page.value-1)*pageSize.value, page.value*pageSize.value))
-watch(loans, () => { page.value = 1 })
 const applicationsPath = computed(() => route.path.startsWith('/super') ? '/super/applications?new=1' : '/institution/applications?new=1')
+
+// ── Filtros (client-side: /loans/active/list já carrega tudo de uma vez, tal como o resto
+// da aplicação — não há paginação no backend para estes dados, por isso não há risco de
+// "filtrar só o que já foi carregado").
+const filters = ref({ q: '', status: '', product: '', from: '', to: '', min: null, max: null })
+const qDebounced = ref('')
+let qDebounceTimer = null
+watch(() => filters.value.q, (v) => {
+  clearTimeout(qDebounceTimer)
+  qDebounceTimer = setTimeout(() => { qDebounced.value = v }, 300)
+})
+function clearFilters(){ filters.value = { q:'', status:'', product:'', from:'', to:'', min:null, max:null }; qDebounced.value = '' }
+const productOptions = computed(() => {
+  const names = new Set(loans.value.map(l => l.LoanApplication?.CreditProduct?.name).filter(Boolean))
+  return [...names]
+})
+const filteredLoans = computed(() => loans.value.filter(l => {
+  const q = qDebounced.value.trim().toLowerCase()
+  if (q) {
+    const hay = `${l.LoanApplication?.reference||''} ${l.LoanApplication?.Client?.User?.full_name||''}`.toLowerCase()
+    if (!hay.includes(q)) return false
+  }
+  if (filters.value.status && displayStatus(l) !== filters.value.status) return false
+  if (filters.value.product && l.LoanApplication?.CreditProduct?.name !== filters.value.product) return false
+  const amount = disbursedAmount(l)
+  if (filters.value.min != null && filters.value.min !== '' && amount < Number(filters.value.min)) return false
+  if (filters.value.max != null && filters.value.max !== '' && amount > Number(filters.value.max)) return false
+  const disbursed = l.disbursed_at || l.LoanApplication?.disbursed_at
+  if (filters.value.from && (!disbursed || new Date(disbursed) < new Date(filters.value.from))) return false
+  if (filters.value.to && (!disbursed || new Date(disbursed) > new Date(new Date(filters.value.to).setHours(23,59,59,999)))) return false
+  return true
+}))
+const pagedLoans = computed(() => filteredLoans.value.slice((page.value-1)*pageSize.value, page.value*pageSize.value))
+watch(filteredLoans, () => { page.value = 1 })
 
 const mzn = v => Number(v || 0).toLocaleString('pt-MZ', { style:'currency', currency:'MZN', maximumFractionDigits:0 })
 const date = d => d ? new Date(d).toLocaleDateString('pt-MZ') : '—'
@@ -164,6 +354,38 @@ const totalBalance = computed(()=>loans.value.reduce((s,l)=>s+balanceAmount(l),0
 async function load(){ loading.value=true; try{ const {data}=await api.get('/loans/active/list?limit=100000'); loans.value=(data.data||[]).filter(l=>['active','overdue','completed','approved_pending_disbursement','disbursed_without_schedule'].includes(displayStatus(l))) }catch(e){ toast.error(e.response?.data?.message||'Erro ao carregar empréstimos') } finally{ loading.value=false } }
 function toggle(l){ opened.value[l.id]=!opened.value[l.id] }
 function viewLoan(l){ selected.value=l; modal.value='view' }
+
+// ── Popup de detalhe (clique na linha) — adicional aos botões existentes, não os substitui.
+// Reutiliza exactamente as mesmas funções/endpoints já usados pelos botões da tabela.
+const detailTab = ref('resumo')
+const detailPayments = ref([])
+const detailPaymentsLoading = ref(false)
+const detailAudit = ref([])
+const detailAuditLoading = ref(false)
+const detailAuditForbidden = ref(false)
+function openDetail(l){ selected.value=l; detailTab.value='resumo'; detailPayments.value=[]; detailAudit.value=[]; detailAuditForbidden.value=false; modal.value='detail' }
+async function loadDetailPayments(l){
+  detailPaymentsLoading.value=true
+  try{ const {data}=await api.get('/payments',{params:{loan_id:l.id,limit:1000}}); detailPayments.value=data.data||[] }
+  catch(e){ toast.error(e.response?.data?.message||'Erro ao carregar pagamentos do empréstimo') }
+  finally{ detailPaymentsLoading.value=false }
+}
+async function loadDetailAudit(l){
+  detailAuditLoading.value=true; detailAuditForbidden.value=false
+  try{
+    const ids=[l.id, l.application_id, ...detailPayments.value.map(p=>p.id)].filter(Boolean)
+    const {data}=await api.get('/audit',{params:{entity_id_in:ids.join(','),limit:100}})
+    detailAudit.value=data.data||[]
+  }catch(e){ if(e.response?.status===403) detailAuditForbidden.value=true; else toast.error(e.response?.data?.message||'Erro ao carregar histórico') }
+  finally{ detailAuditLoading.value=false }
+}
+async function onDetailTab(tab){
+  detailTab.value=tab
+  if(tab==='pagamentos' && !detailPayments.value.length && !detailPaymentsLoading.value) await loadDetailPayments(selected.value)
+  if(tab==='historico' && !detailAudit.value.length && !detailAuditLoading.value){ if(!detailPayments.value.length) await loadDetailPayments(selected.value); await loadDetailAudit(selected.value) }
+}
+function scheduleBalance(p){ return Math.max(Number(p.total_due||0)+Number(p.late_fee||0)-Number(p.total_paid||0), 0) }
+function auditActionLabel(a){ return ({loan_disbursement_updated:'Data de desembolso editada',loan_recalculated:'Empréstimo recalculado',payment_registered:'Pagamento registado',payment_edited:'Pagamento editado',payment_cancelled:'Pagamento cancelado',loan_payment_notification_sent:'Notificação enviada'})[a]||a }
 function openPay(l){ selected.value=l; pay.value={loan_id:l.id, method:'bank_transfer', amount:null, external_reference:'', phone_number:'', receipt:null}; modal.value='pay' }
 async function savePay(){ try{ const fd=new FormData(); for(const k of ['loan_id','amount','method','external_reference','phone_number']) fd.append(k,pay.value[k]||''); fd.append('receipt',pay.value.receipt); await api.post('/payments/manual',fd,{headers:{'Content-Type':'multipart/form-data'}}); toast.success('Pagamento registado e reflectido na conta do cliente'); modal.value=null; await load() }catch(e){ toast.error(e.response?.data?.message||'Erro ao registar pagamento') } }
 async function notify(l){ try{ await api.post(`/loans/${l.id}/notify-payment`); toast.success('Email de cobrança enviado ao cliente e registado em logs') }catch(e){ toast.error(e.response?.data?.message||'Erro ao enviar email de notificação') } }

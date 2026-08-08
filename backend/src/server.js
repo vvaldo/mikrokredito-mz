@@ -1,7 +1,7 @@
 // src/server.js
 require('dotenv').config();
 const app = require('./app');
-const { sequelize, PlatformSetting, PaymentAllocation } = require('./models');
+const { sequelize, PlatformSetting, PaymentAllocation, NotificationTemplate } = require('./models');
 const { initQueues } = require('./queues');
 const whatsappClient = require('./services/whatsapp/whatsappClient');
 const logger = require('./utils/logger');
@@ -27,6 +27,19 @@ async function ensureSchemaPatches() {
   await PaymentAllocation.sync();
 }
 
+// Templates/regras de notificação por omissão nunca deviam ficar vazios (não são "dados de
+// demonstração" — são configuração base do sistema). Corre em TODOS os arranques, em
+// qualquer ambiente, mas só insere quando a tabela está mesmo vazia — idempotente e seguro
+// mesmo que um `clean --minimal` (que apaga tudo) tenha corrido sem o operador saber que
+// isto precisava de ser reposto manualmente.
+async function ensureDefaultNotificationTemplates() {
+  const count = await NotificationTemplate.count();
+  if (count > 0) return;
+  const { seedNotificationDefaults } = require('./models/seed');
+  await seedNotificationDefaults();
+  logger.info('Templates de notificação por omissão criados (tabela estava vazia).');
+}
+
 async function start() {
   try {
     await sequelize.authenticate();
@@ -41,6 +54,7 @@ async function start() {
       await PlatformSetting.sync();
       await ensureSchemaPatches();
     }
+    await ensureDefaultNotificationTemplates();
 
     await initQueues();
     logger.info('Queues initialised');

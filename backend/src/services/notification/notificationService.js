@@ -35,11 +35,17 @@ async function triggerEvent(event, context) {
         return true;
       });
 
+      // app_name/app_url são anunciados na UI de templates como variáveis sempre disponíveis,
+      // mas nunca eram passados pelos triggers concretos (loan_submitted, payment_received, ...)
+      // — um template com {{app_name}}/{{app_url}} renderizava esses trechos vazios. Iguala aqui
+      // o que é realmente substituído ao que a UI promete.
+      const renderData = { ...data, app_name: institution?.name || 'MicroCredit SYSTEM', app_url: process.env.FRONTEND_URL || '' };
+
       for (const channel of channels) {
         const template = await resolveTemplate(event, channel, institutionId, 'pt');
         if (!template) { logger.warn(`No template for event=${event} channel=${channel}`); continue; }
 
-        const rendered = renderTemplate(template, data);
+        const rendered = renderTemplate(template, renderData);
 
         const logEntry = await NotificationLog.create({
           institution_id:   institutionId,

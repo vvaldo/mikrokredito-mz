@@ -192,3 +192,38 @@
 
 @media(max-width:980px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.modern-grid-2{grid-template-columns:1fr}}
 @media(max-width:640px){.kpi-grid{grid-template-columns:1fr}}
+
+/* ── Filtros (barra reutilizável acima de listas: Empréstimos, Pedidos, Pagamentos) ── */
+.filters-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px 14px;align-items:end;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--mk-border)}
+.filters-bar .field{min-width:0}
+.filters-actions{display:flex;gap:8px;align-items:end}
+
+/* ── Linha/cartão clicável (abre popup de detalhe; botões internos usam @click.stop) ── */
+.clickable-row{cursor:pointer}
+.clickable-row:hover{background:var(--mk-surface-2)}
+.clickable-row:focus-visible{outline:2px solid var(--erp-blue);outline-offset:-2px}
+
+/* ── Alternância tabela desktop / cartões mobile — nunca esconde informação, só reformata ── */
+.mobile-only{display:none}
+@media(max-width:768px){
+  .desktop-only{display:none}
+  .mobile-only{display:block}
+}
+
+/* ── Cartões de lista mobile (empréstimos, pedidos, pagamentos) ── */
+.mobile-cards{display:flex;flex-direction:column;gap:10px}
+.loan-card,.list-card{background:var(--mk-surface);border:1px solid var(--mk-border);border-radius:var(--mk-r);padding:12px;cursor:pointer}
+.loan-card:focus-visible,.list-card:focus-visible{outline:2px solid var(--erp-blue);outline-offset:-2px}
+.loan-card-head,.list-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
+.loan-card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:12px;margin-bottom:10px}
+.loan-card .action-row,.list-card .action-row{flex-wrap:wrap}
+
+/* ── Badge simples Sim/Não (ex.: comprovativo) ── */
+.badge-yesno-yes{background:rgba(46,125,50,.12);color:#2E7D32;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+.badge-yesno-no{background:var(--mk-surface-2);color:var(--mk-text-3);padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+
+/* ── Pequenos cards de stats dentro de um popup (Capital | Juros | Mora | Pago | Saldo) ── */
+.mini-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:16px}
+.mini-stats div{background:var(--mk-surface-2);border:1px solid var(--mk-border);border-radius:var(--mk-r-sm);padding:9px 10px}
+.mini-stats span{display:block;font-size:10.5px;color:var(--mk-text-3);margin-bottom:2px}
+.mini-stats strong{font-size:13px}

@@ -79,9 +79,12 @@
       <div class="alert alert-info mb-4" style="font-size:12px">
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6.5" cy="6.5" r="5.5"/><line x1="6.5" y1="5" x2="6.5" y2="8"/></svg>
         <div>
-          Variáveis disponíveis: <strong>&#123;&#123;nome_cliente&#125;&#125;</strong>, <strong>&#123;&#123;valor&#125;&#125;</strong>, <strong>&#123;&#123;referencia&#125;&#125;</strong>,
+          Variáveis realmente substituídas pelo sistema ao enviar — usar exactamente estes nomes (maiúsculas/minúsculas incluídas):
+          <strong>&#123;&#123;clientName&#125;&#125;</strong>, <strong>&#123;&#123;amount&#125;&#125;</strong>, <strong>&#123;&#123;reference&#125;&#125;</strong>,
+          <strong>&#123;&#123;institutionName&#125;&#125;</strong>, <strong>&#123;&#123;product&#125;&#125;</strong>, <strong>&#123;&#123;installment&#125;&#125;</strong>, <strong>&#123;&#123;term&#125;&#125;</strong>,
+          <strong>&#123;&#123;method&#125;&#125;</strong> (pagamentos), <strong>&#123;&#123;reason&#125;&#125;</strong> (rejeição),
           <strong>&#123;&#123;app_name&#125;&#125;</strong> (= {{ brand.name }}), <strong>&#123;&#123;app_url&#125;&#125;</strong>.
-          Estas variáveis são substituídas automaticamente no envio.
+          Nem todas as variáveis se aplicam a todos os eventos — use "Pré-visualizar" para conferir.
         </div>
       </div>
       <div v-if="tmplLoading" class="modern-card"><LoadingSpinner label="A carregar templates..." /></div>
@@ -96,16 +99,19 @@
         </div>
         <div class="table-wrap">
         <table class="modern-table">
-          <thead><tr><th>Evento</th><th>Canal</th><th>Assunto</th><th>Pré-visualização</th><th></th></tr></thead>
+          <thead><tr><th>Evento</th><th>Canal</th><th>Assunto</th><th>Pré-visualização</th><th>Estado</th><th></th></tr></thead>
           <tbody>
             <tr v-for="t in templates" :key="t.id">
               <td><span class="badge badge-blue" style="font-size:10px">{{ t.key }}</span></td>
               <td><span class="ch-pill" :class="'ch-'+t.channel">{{ chIcon(t.channel) }} {{ t.channel }}</span></td>
               <td style="font-size:12px;max-width:200px" class="truncate">{{ t.subject || '—' }}</td>
               <td style="font-size:11px;color:var(--mk-text-2);max-width:260px" class="truncate">{{ stripHtml(t.body) }}</td>
+              <td><span :class="t.is_active===false?'badge-yesno-no':'badge-yesno-yes'">{{ t.is_active===false?'Inactivo':'Activo' }}</span></td>
               <td>
-                <div style="display:flex;gap:4px">
+                <div style="display:flex;gap:4px;flex-wrap:wrap">
                   <button class="btn btn-xs btn-blue-soft" @click="openTmpl(t)">Editar</button>
+                  <button class="btn btn-xs" @click="duplicateTmpl(t)">Duplicar</button>
+                  <button class="btn btn-xs" @click="toggleTmplActive(t)">{{ t.is_active===false?'Activar':'Desactivar' }}</button>
                   <button class="btn btn-xs btn-danger-soft" @click="deleteTmpl(t)">✕</button>
                 </div>
               </td>
@@ -198,8 +204,19 @@
               <div class="form-group">
                 <label class="form-label">Corpo da mensagem <span class="req">*</span></label>
                 <textarea class="form-textarea" v-model="editingTmpl.body" rows="7"
-                  :placeholder="editingTmpl.channel==='sms' ? 'Ex: {{app_name}}: Caro(a) {{nome_cliente}}, o seu pedido {{referencia}} foi aprovado.' : 'HTML ou texto. Use {{nome_cliente}}, {{valor}}, {{referencia}}, {{app_name}}, {{app_url}}'"></textarea>
+                  :placeholder="editingTmpl.channel==='sms' ? 'Ex: {{app_name}}: Caro(a) {{clientName}}, o seu pedido {{reference}} foi aprovado.' : 'HTML ou texto. Use {{clientName}}, {{amount}}, {{reference}}, {{app_name}}, {{app_url}}'"></textarea>
                 <p class="form-hint">Link automático: {{ brand.name }} · {{ appUrl }}</p>
+              </div>
+              <div class="form-group">
+                <div style="display:flex;justify-content:space-between;align-items:center">
+                  <label class="form-label" style="margin:0">Pré-visualização</label>
+                  <button class="btn btn-xs" type="button" @click="showPreview=!showPreview">{{ showPreview?'Ocultar':'Pré-visualizar' }}</button>
+                </div>
+                <div v-if="showPreview" style="margin-top:8px;border:1px solid var(--mk-border);border-radius:var(--mk-r);padding:12px;background:var(--mk-surface-2)">
+                  <p v-if="previewSubject" style="font-size:12px;margin-bottom:8px"><strong>Assunto:</strong> {{ previewSubject }}</p>
+                  <div style="font-size:12px;line-height:1.6" v-html="previewBody"></div>
+                  <p class="form-hint" style="margin-top:8px">Simulação local com dados de exemplo — não envia nenhuma mensagem.</p>
+                </div>
               </div>
             </div>
             <div class="modal-footer">
@@ -308,8 +325,37 @@ async function loadTmpls() { tmplLoading.value=true; await notif.fetchTemplates(
 
 function openTmpl(t) {
   editingTmpl.value = t ? { ...t } : { key:'', channel:'email', subject:'', body:'' }
+  showPreview.value = false
   tmplModal.value = true
 }
+function duplicateTmpl(t) {
+  editingTmpl.value = { ...t, id: null, subject: t.subject ? t.subject + ' (cópia)' : t.subject }
+  showPreview.value = false
+  tmplModal.value = true
+}
+async function toggleTmplActive(t) {
+  try {
+    await notif.saveTemplate({ ...t, is_active: t.is_active === false })
+    toast.success(t.is_active === false ? 'Template activado' : 'Template desactivado')
+    await loadTmpls()
+  } catch (e) { toast.error('Erro ao actualizar template') }
+}
+
+// ── Pré-visualização local (não envia nada) — usa exactamente as variáveis realmente
+// substituídas pelo backend (ver notificationService.js: clientName, amount, reference,
+// institutionName, product, installment, term, method, reason, app_name, app_url).
+const showPreview = ref(false)
+const previewSample = {
+  clientName: 'Domingos José António Junior', amount: '8.000 MZN', reference: 'EMP-557509',
+  institutionName: brand.name, product: 'Crédito Negócio', installment: '4.100 MZN', term: '3',
+  method: 'M-Pesa', reason: 'Documentos incompletos', app_name: brand.name, app_url: appUrl,
+}
+function renderPreview(text) {
+  if (!text) return ''
+  return text.replace(/\{\{\s*([a-zA-Z_]+)\s*\}\}/g, (m, key) => previewSample[key] ?? m)
+}
+const previewSubject = computed(() => renderPreview(editingTmpl.value.subject))
+const previewBody = computed(() => renderPreview(editingTmpl.value.body))
 async function saveTmpl() {
   if (!editingTmpl.value.key || !editingTmpl.value.channel || !editingTmpl.value.body) {
     toast.error('Preencha todos os campos obrigatórios'); return

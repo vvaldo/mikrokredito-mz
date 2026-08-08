@@ -43,17 +43,17 @@
       <table class="modern-table">
         <thead><tr><th>Ref.</th><th>Empréstimo</th><th>Valor</th><th>Método</th><th>Data</th><th>Estado</th><th>Comprovativo</th><th>Acções</th></tr></thead>
         <tbody>
-          <tr v-for="r in pagedRows" :key="r.id">
+          <tr v-for="r in pagedRows" :key="r.id" class="clickable-row" tabindex="0" role="button" :aria-label="`Ver detalhe do pagamento ${r.reference}`" @click="view(r)" @keydown.enter="view(r)" @keydown.space.prevent="view(r)">
             <td><strong>{{ r.reference }}</strong></td>
             <td>{{ r.Loan?.LoanApplication?.reference || '—' }}</td>
             <td>{{ mzn(r.amount) }}</td>
             <td>{{ methodLabel(r.method) }}</td>
             <td>{{ dateTime(r.created_at) }}</td>
             <td><span :class="statusClass(r.status)">{{ statusLabel(r.status) }}</span></td>
-            <td>{{ r.receipt_original_name || '—' }}</td>
-            <td><div class="action-row">
-              <button class="btn btn-sm" @click="view(r)">Visualizar</button>
-              <button class="btn btn-sm btn-blue-soft" :disabled="!r.receipt_file_name" @click="downloadReceipt(r)">Baixar comprovativo</button>
+            <td><span :class="r.receipt_file_name?'badge-yesno-yes':'badge-yesno-no'">{{ r.receipt_file_name?'Sim':'Não' }}</span></td>
+            <td><div class="action-row" @click.stop>
+              <button class="btn btn-sm" @click.stop="view(r)">Visualizar</button>
+              <button class="btn btn-sm btn-blue-soft" :disabled="!r.receipt_file_name" @click.stop="downloadReceipt(r)">Baixar comprovativo</button>
             </div></td>
           </tr>
           <tr v-if="!rows.length"><td colspan="8" class="empty-state">Ainda não tem pagamentos registados.</td></tr>
@@ -85,7 +85,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useToast } from 'vue-toastification'
-import api from '@/services/api'
+import api, { downloadReceipt as downloadReceiptFile } from '@/services/api'
 import AppPagination from '@/components/common/AppPagination.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 const toast = useToast()
@@ -143,14 +143,8 @@ const monthlyChart = computed(() => {
 function view(r) { selected.value = r }
 
 async function downloadReceipt(r) {
-  try {
-    const res = await api.get(`/payments/${r.id}/receipt`, { responseType: 'blob' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([res.data]))
-    a.download = r.receipt_original_name || 'comprovativo'
-    a.click()
-    URL.revokeObjectURL(a.href)
-  } catch (e) { toast.error('Erro ao baixar comprovativo') }
+  try { await downloadReceiptFile(r.id, r.receipt_original_name || 'comprovativo') }
+  catch (e) { toast.error(e.message || 'Erro ao baixar comprovativo') }
 }
 
 function exportExcel() {
