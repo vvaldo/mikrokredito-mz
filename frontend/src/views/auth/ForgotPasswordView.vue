@@ -29,12 +29,15 @@
         </template>
 
         <template v-else-if="step==='confirm'">
-          <h2 style="font-size:20px;font-weight:700;margin-bottom:6px;color:var(--mk-text)">Confirmar token</h2>
-          <p style="font-size:13px;color:var(--mk-text-2);margin-bottom:24px">
+          <h2 style="font-size:20px;font-weight:700;margin-bottom:6px;color:var(--mk-text)">{{ fromLink ? 'Definir a sua palavra-passe' : 'Confirmar token' }}</h2>
+          <p style="font-size:13px;color:var(--mk-text-2);margin-bottom:24px" v-if="fromLink">
+            Bem-vindo(a)! Defina a palavra-passe que vai usar para entrar na plataforma com <strong style="color:var(--blue-600)">{{ email }}</strong>.
+          </p>
+          <p style="font-size:13px;color:var(--mk-text-2);margin-bottom:24px" v-else>
             Enviámos um token para <strong style="color:var(--blue-600)">{{ email }}</strong>. Introduza-o abaixo com a nova palavra-passe.
           </p>
           <form @submit.prevent="submitReset">
-            <div class="form-group">
+            <div class="form-group" v-if="!fromLink">
               <label class="form-label">Token <span class="req">*</span></label>
               <input class="form-input" v-model="token" required minlength="6" maxlength="12" placeholder="Código recebido por email"/>
             </div>
@@ -49,20 +52,23 @@
             </div>
             <div v-if="error" class="alert alert-danger">{{ error }}</div>
             <button class="btn btn-primary btn-block" type="submit" :class="{loading}" :disabled="loading || pwdMismatch" style="height:44px;font-size:14px">
-              {{ loading ? '' : '✓ Redefinir palavra-passe' }}
+              {{ loading ? '' : (fromLink ? '✓ Definir palavra-passe' : '✓ Redefinir palavra-passe') }}
             </button>
           </form>
-          <div style="text-align:center;margin-top:14px">
+          <div style="text-align:center;margin-top:14px" v-if="!fromLink">
             <button type="button" class="btn btn-ghost btn-sm" :disabled="loading" @click="submitRequest">Reenviar token</button>
+          </div>
+          <div style="text-align:center;margin-top:14px" v-else-if="error">
+            <RouterLink to="/forgot-password" style="font-size:12px;color:var(--blue-400);font-weight:500">Link expirado ou inválido? Pedir um novo →</RouterLink>
           </div>
         </template>
 
         <template v-else>
           <div style="text-align:center;padding:16px 0">
             <div style="font-size:48px;margin-bottom:16px">✅</div>
-            <h2 style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--mk-text)">Palavra-passe redefinida!</h2>
+            <h2 style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--mk-text)">Palavra-passe {{ fromLink ? 'definida' : 'redefinida' }}!</h2>
             <p style="font-size:13px;color:var(--mk-text-2);line-height:1.7">
-              A sua palavra-passe foi alterada com sucesso. Já pode entrar com a nova palavra-passe.
+              A sua palavra-passe foi {{ fromLink ? 'definida' : 'alterada' }} com sucesso. Já pode entrar com a nova palavra-passe.
             </p>
           </div>
         </template>
@@ -75,13 +81,24 @@
 </template>
 <script setup>
 import { ref, computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 import api from '@/services/api'
 import { useToast } from 'vue-toastification'
 const toast=useToast()
+const route = useRoute()
 const email=ref(''), token=ref(''), newPassword=ref(''), confirmPassword=ref('')
 const loading=ref(false), error=ref(''), step=ref('request')
 const pwdMismatch = computed(() => confirmPassword.value && newPassword.value !== confirmPassword.value)
+
+// Link de definição de password (boas-vindas ou "Reenviar acesso"): /set-password?email=&token=
+// — salta directamente para o passo de definir a palavra-passe, sem pedir um novo token.
+const fromLink = ref(false)
+if (route.query.token && route.query.email) {
+  email.value = String(route.query.email)
+  token.value = String(route.query.token)
+  fromLink.value = true
+  step.value = 'confirm'
+}
 
 async function submitRequest(){
   loading.value=true; error.value=''

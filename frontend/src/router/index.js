@@ -11,6 +11,10 @@ const routes = [
   { path: '/login',          component: () => import('@/views/auth/LoginView.vue'),    meta: { guest: true } },
   { path: '/register',       component: () => import('@/views/auth/RegisterView.vue'), meta: { guest: true } },
   { path: '/forgot-password', component: () => import('@/views/auth/ForgotPasswordView.vue'), meta: { guest: true } },
+  // Link de definição de password (boas-vindas ao registar / "Reenviar acesso") — mesmo
+  // componente do "Esqueci a palavra-passe", que detecta ?email=&token= e salta para o passo
+  // de definir a nova palavra-passe reutilizando POST /auth/reset-password.
+  { path: '/set-password', component: () => import('@/views/auth/ForgotPasswordView.vue'), meta: { guest: true } },
   { path: '/verify-email/:token', component: () => import('@/views/auth/VerifyEmailView.vue') },
 
   // ── Super Admin

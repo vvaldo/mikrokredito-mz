@@ -7,6 +7,8 @@ const { audit } = require('../middleware/audit');
 const { Op } = require('sequelize');
 const { v4: uuidv4 } = require('uuid');
 const { notifyAffectedUser } = require('../services/userActionNotifier');
+const { sendWelcomeWithAccess, isRealEmail } = require('../services/accountAccess');
+const { maskEmail, maskPhone } = require('../utils/mask');
 
 const safeUserAttrs = { exclude: ['password_hash', 'reset_token', 'verification_token'] };
 
@@ -132,6 +134,26 @@ router.post('/:id/approve-kyc', authenticate, authorize('inst_admin', 'inst_agen
     const { triggerEvent } = require('../services/notification/notificationService');
     await triggerEvent(event, { institutionId: req.user.institution_id, recipientEmail: client.User?.email, recipientPhone: client.User?.phone, data: { clientName: client.User?.full_name } });
     res.json({ success: true, data: client });
+  } catch (err) { next(err); }
+});
+
+// POST /clients/:id/resend-access — "🔐 Reenviar acesso": gera um NOVO token de definição de
+// password (invalidando o anterior — issuePasswordSetupToken sobrescreve reset_token) e reenvia
+// a mensagem de boas-vindas com o link, pelos mesmos canais/regras do evento client_registered.
+// NUNCA reenvia uma password — só o link seguro de uso único.
+router.post('/:id/resend-access', authenticate, authorize('inst_admin', 'inst_agent', 'super_admin'), audit('client_access_resent'), async (req, res, next) => {
+  try {
+    const client = await Client.findByPk(req.params.id, { include: [User] });
+    if (!client || !client.User) return res.status(404).json({ success: false, message: 'Cliente não encontrado' });
+    if (!isRealEmail(client.User.email)) {
+      return res.status(400).json({ success: false, message: 'Este cliente não tem um email real associado — não é possível reenviar um link de acesso.' });
+    }
+    const result = await sendWelcomeWithAccess({ user: client.User, client });
+    res.json({
+      success: true,
+      message: `Novo link de acesso gerado e enviado para ${maskEmail(client.User.email)}${client.User.phone ? ' / ' + maskPhone(client.User.phone) : ''}.`,
+      data: { expiresAt: result.expiresAt },
+    });
   } catch (err) { next(err); }
 });
 

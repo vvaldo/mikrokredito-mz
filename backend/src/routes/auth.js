@@ -6,7 +6,7 @@ const { body, validationResult } = require('express-validator');
 const { v4: uuidv4 } = require('uuid');
 const { User, Client, Institution, AuditLog } = require('../models');
 const { authenticate } = require('../middleware/auth');
-const { triggerEvent } = require('../services/notification/notificationService');
+const { sendWelcomeWithAccess } = require('../services/accountAccess');
 
 const crypto = require('crypto');
 const { NotificationLog } = require('../models');
@@ -131,11 +131,12 @@ router.post('/register',
         kyc_status:       'incomplete',
       });
 
-      await triggerEvent('client_registered', {
-        recipientEmail: email,
-        recipientPhone: phone,
-        data: { clientName: full_name },
-      });
+      // Mensagem única de boas-vindas + acesso: nunca envia a password em texto simples — gera
+      // sempre um token de definição de password de uso único (ver services/accountAccess.js).
+      // Clientes não pertencem a uma instituição específica (só os pedidos/empréstimos
+      // pertencem), por isso o template global (institution_id null) é sempre o correcto aqui,
+      // independentemente de quem criou a conta (auto-registo, admin, gestor ou agente).
+      await sendWelcomeWithAccess({ user, client });
 
       res.status(201).json({ success: true, message: 'Conta criada. Verifique o seu email.', data: { client: { id: client.id } } });
     } catch (err) { next(err); }
@@ -256,8 +257,10 @@ router.post('/request-password-reset-token', authenticate, async (req, res, next
     await user.update({ reset_token: tokenHash, reset_token_expires: new Date(Date.now() + 15 * 60 * 1000) });
 
     if (channel !== 'email') {
-      // SMS/WhatsApp dependem de gateway externo; guardamos log claro enquanto o provedor não estiver configurado.
-      await NotificationLog.create({ recipient_id: user.id, recipient_email: user.email, recipient_phone: user.phone, channel: channel === 'whatsapp' ? 'whatsapp' : 'sms', event: 'password_reset_requested', body: `Token: ${token}`, status: 'queued', attempts: 0, metadata: { requires_provider_configuration: true } });
+      // SMS/WhatsApp dependem de gateway externo; guardamos um registo claro enquanto o
+      // provedor não estiver configurado — NUNCA o token completo (só o hash já foi gravado
+      // acima, em reset_token).
+      await NotificationLog.create({ recipient_id: user.id, recipient_email: user.email, recipient_phone: user.phone, channel: channel === 'whatsapp' ? 'whatsapp' : 'sms', event: 'password_reset_requested', body: 'Token gerado (não exibido por segurança). Configure o provedor para envio automático.', status: 'queued', attempts: 0, metadata: { requires_provider_configuration: true } });
       return res.json({ success: true, message: 'Token gerado. Configure o provedor SMS/WhatsApp para envio automático.', channel });
     }
 

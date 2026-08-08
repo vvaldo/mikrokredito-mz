@@ -24,6 +24,7 @@
         <div class="action-row mb-4">
           <button class="btn btn-sm btn-primary" :disabled="selected.kyc_status==='approved'" @click="approveKyc(true)">✅ Aprovar KYC</button>
           <button class="btn btn-sm btn-danger-soft" :disabled="selected.kyc_status==='rejected'" @click="approveKyc(false)">✕ Rejeitar KYC</button>
+          <button class="btn btn-sm" :disabled="resendingAccess" @click="resendAccess(selected)">🔐 {{ resendingAccess ? 'A enviar...' : 'Reenviar acesso' }}</button>
         </div>
 
         <div class="form-section">📋 CRC</div>
@@ -72,7 +73,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'; import { useRouter, useRoute } from 'vue-router'; import { useToast } from 'vue-toastification'; import api,{downloadDocument,uploadDocument} from '@/services/api'; import StatusBadge from '@/components/common/StatusBadge.vue'; import AppPagination from '@/components/common/AppPagination.vue'; import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 const router=useRouter(), route=useRoute(), toast=useToast(); const clients=ref([]), q=ref(''), modal=ref(null), selected=ref(null), loading=ref(false);
-const review=ref({kyc_notes:'', crc_status:'em_verificacao', crc_comment:''}); const uploadType=ref('bi');
+const review=ref({kyc_notes:'', crc_status:'em_verificacao', crc_comment:''}); const uploadType=ref('bi'); const resendingAccess=ref(false);
 const page=ref(1), pageSize=ref(10)
 const base=computed(()=>route.path.startsWith('/super')?'/super':'/institution');
 const filtered=computed(()=>clients.value.filter(c=>[c.User?.full_name,c.User?.email,c.User?.phone,c.nuit].join(' ').toLowerCase().includes(q.value.toLowerCase()))); const complete=computed(()=>clients.value.filter(c=>c.kyc_status==='approved').length); const blockedKyc=computed(()=>clients.value.filter(c=>['incomplete','rejected'].includes(c.kyc_status)).length); const blockedUsers=computed(()=>clients.value.filter(c=>c.User?.status==='blocked').length); const title=computed(()=>modal.value==='docs'?'Documentos':'Cliente');
@@ -93,6 +94,14 @@ async function approveKyc(approved){
     toast.success(approved ? 'KYC aprovado' : 'KYC rejeitado')
     await load()
   }catch(e){toast.error(e.response?.data?.message||'Erro ao rever KYC')}
+}
+async function resendAccess(c){
+  resendingAccess.value=true
+  try{
+    const {data}=await api.post(`/clients/${c.id}/resend-access`)
+    toast.success(data.message || 'Novo link de acesso enviado.')
+  }catch(e){toast.error(e.response?.data?.message||'Erro ao reenviar acesso')}
+  finally{resendingAccess.value=false}
 }
 async function saveCrc(){
   try{

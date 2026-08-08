@@ -43,7 +43,11 @@ function startOfYear(d){ return new Date(d.getFullYear(), 0, 1); }
 
 async function getLoanLateFeeRate(loanId) {
   const loan = await Loan.findByPk(loanId, { include: [{ model: LoanApplication, include: [CreditProduct] }] });
-  return { loan, rate: Number(loan?.LoanApplication?.CreditProduct?.late_fee_rate ?? 0) };
+  return {
+    loan,
+    rate: Number(loan?.LoanApplication?.CreditProduct?.late_fee_rate ?? 0),
+    graceDays: Number(loan?.LoanApplication?.CreditProduct?.grace_period_days ?? 0),
+  };
 }
 
 async function persistScheduleChanges(scheduleInstances, updatedPlain) {
@@ -71,14 +75,14 @@ async function persistScheduleChanges(scheduleInstances, updatedPlain) {
 // processar (ex.: ao listar /payments ou /loans) e como último passo depois de reproduzir o
 // histórico completo de transacções. Devolve a mora total actualmente em aberto no empréstimo.
 async function applyLateFeesForLoan(loanId, asOf = new Date()) {
-  const { loan, rate } = await getLoanLateFeeRate(loanId);
+  const { loan, rate, graceDays } = await getLoanLateFeeRate(loanId);
   if (!loan) return 0;
   const scheduleInstances = await PaymentSchedule.findAll({
     where: { loan_id: loanId, status: { [Op.in]: ['pending', 'partial', 'overdue'] } },
     order: [['due_date', 'ASC']],
   });
   const plain = scheduleInstances.map(s => s.toJSON());
-  const after = accrueOpenSchedules(plain, rate, asOf);
+  const after = accrueOpenSchedules(plain, rate, asOf, graceDays);
   await persistScheduleChanges(scheduleInstances, after);
 
   const today = startOfDay(asOf);
@@ -212,10 +216,10 @@ router.post('/reconcile', authenticate, authorize('inst_admin','super_admin'), a
 // (recomputeLoanTotals), para que o total pago nunca fique dependente de a alocação ter
 // "encaixado" nalguma prestação.
 async function allocateTransactionToSchedules(tx, asOf) {
-  const { rate } = await getLoanLateFeeRate(tx.loan_id);
+  const { rate, graceDays } = await getLoanLateFeeRate(tx.loan_id);
   const scheduleInstances = await PaymentSchedule.findAll({ where: { loan_id: tx.loan_id }, order: [['due_date', 'ASC']] });
   const plain = scheduleInstances.map(s => s.toJSON());
-  const { schedules: after, allocations, unallocated } = applyPaymentToSchedules(plain, tx.amount, asOf || tx.createdAt || new Date(), rate);
+  const { schedules: after, allocations, unallocated } = applyPaymentToSchedules(plain, tx.amount, asOf || tx.createdAt || new Date(), rate, graceDays);
 
   await persistScheduleChanges(scheduleInstances, after);
 

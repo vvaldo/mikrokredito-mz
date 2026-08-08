@@ -10,7 +10,7 @@
 // corrente estar 100% liquidada (capital + juros + mora).
 
 const assert = require('assert');
-const { replayLoan, round2 } = require('../src/services/loanAccounting');
+const { replayLoan, round2, lateInterestStartDate, accrueLateFee } = require('../src/services/loanAccounting');
 
 function approx(actual, expected, msg) {
   assert.ok(Math.abs(actual - expected) < 0.01, `${msg}: esperado ${expected}, obtido ${actual}`);
@@ -144,6 +144,54 @@ function testAdditionalCases() {
   console.log('✓ Casos adicionais (antecipado, exacto, duas prestações, vários pagamentos, sem pagamento, sem mora) validados.');
 }
 
+function testGracePeriod() {
+  const RATE = 0.005;
+
+  // lateInterestStartDate: com graceDays=0 é exactamente a data de vencimento (comportamento
+  // antigo preservado); com graceDays>0 desloca-se para a frente.
+  {
+    const due = new Date('2026-07-01');
+    assert.strictEqual(lateInterestStartDate(due, 0).getTime(), due.getTime());
+    const shifted = lateInterestStartDate(due, 5);
+    assert.strictEqual(shifted.getTime(), new Date('2026-07-06').getTime());
+  }
+
+  // Dentro do período de tolerância (grace) — vencida pelo due_date, mas ainda sem mora.
+  {
+    const schedules = [{ id: 'g1', due_date: '2026-07-01', total_due: 1000 }];
+    const { schedules: res } = replayLoan(schedules, [], RATE, new Date('2026-07-04'), 5);
+    approx(res[0].late_fee, 0, 'Dentro da tolerância (4 dias de 5) não acresce mora');
+    assert.strictEqual(res[0].status, 'pending', 'Ainda não passou a tolerância — não fica "overdue"');
+  }
+
+  // Exactamente no limite da tolerância — ainda sem mora (mora só começa DEPOIS do fim do grace).
+  {
+    const schedules = [{ id: 'g2', due_date: '2026-07-01', total_due: 1000 }];
+    const { schedules: res } = replayLoan(schedules, [], RATE, new Date('2026-07-06'), 5);
+    approx(res[0].late_fee, 0, 'No último dia da tolerância ainda não há mora');
+  }
+
+  // Depois do fim da tolerância — mora conta a partir do fim do grace, não do due_date.
+  {
+    const schedules = [{ id: 'g3', due_date: '2026-07-01', total_due: 1000 }];
+    const { schedules: res } = replayLoan(schedules, [], RATE, new Date('2026-07-11'), 5);
+    // fim do grace = 2026-07-06; hoje = 2026-07-11 => 5 dias de mora (não 10, que seria sem grace)
+    approx(res[0].late_fee, 1000 * RATE * 5, 'Mora conta apenas a partir do fim da tolerância');
+    assert.strictEqual(res[0].status, 'overdue');
+  }
+
+  // graceDays=0 (omissão) reproduz exactamente o comportamento anterior — sem regressão.
+  {
+    const schedules = [{ id: 'g4', due_date: '2026-07-01', total_due: 1000 }];
+    const semGrace = accrueLateFee(schedules[0], RATE, new Date('2026-07-11'));
+    const comGraceZero = accrueLateFee(schedules[0], RATE, new Date('2026-07-11'), 0);
+    assert.strictEqual(semGrace.late_fee, comGraceZero.late_fee, 'graceDays omitido == graceDays=0');
+  }
+
+  console.log('✓ Período de tolerância (grace_period_days): juros de mora só começam depois do fim do grace, sem regressão quando graceDays=0.');
+}
+
 testDomingosCase();
 testAdditionalCases();
+testGracePeriod();
 console.log('\nTodos os testes de loanAccounting passaram.');
