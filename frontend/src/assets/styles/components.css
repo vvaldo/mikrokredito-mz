@@ -203,13 +203,6 @@
 .clickable-row:hover{background:var(--mk-surface-2)}
 .clickable-row:focus-visible{outline:2px solid var(--erp-blue);outline-offset:-2px}
 
-/* ── Alternância tabela desktop / cartões mobile — nunca esconde informação, só reformata ── */
-.mobile-only{display:none}
-@media(max-width:768px){
-  .desktop-only{display:none}
-  .mobile-only{display:block}
-}
-
 /* ── Cartões de lista mobile (empréstimos, pedidos, pagamentos) ── */
 .mobile-cards{display:flex;flex-direction:column;gap:10px}
 .loan-card,.list-card{background:var(--mk-surface);border:1px solid var(--mk-border);border-radius:var(--mk-r);padding:12px;cursor:pointer}
@@ -217,6 +210,16 @@
 .loan-card-head,.list-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:10px}
 .loan-card-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:12px;margin-bottom:10px}
 .loan-card .action-row,.list-card .action-row{flex-wrap:wrap}
+
+/* ── Alternância tabela desktop / cartões mobile — nunca esconde informação, só reformata.
+   Fica DEPOIS de .mobile-cards/.loan-card/etc. de propósito: como .mobile-only e .mobile-cards
+   têm a mesma especificidade (uma classe), quem vem depois no ficheiro é que vence o empate —
+   por isso este toggle tem de ser a última palavra, nunca pode ser "revertido" por essas regras. ── */
+.mobile-only{display:none}
+@media(max-width:768px){
+  .desktop-only{display:none}
+  .mobile-only{display:block}
+}
 
 /* ── Badge simples Sim/Não (ex.: comprovativo) ── */
 .badge-yesno-yes{background:rgba(46,125,50,.12);color:#2E7D32;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
